@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover — чтобы работали safe-area на iPhone с вырезом -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#A2D1FF">
+  <title>Aqua — мессенджер</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/icon-64.png">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/icons.css">
+  <link rel="stylesheet" href="css/editor.css">
+</head>
+<body>
+
+<!-- ======================================================================
+     Спрайт SVG-иконок (источник: assets/icons.svg; обновление: python3 tools/inline_sprite.py).
+     Иконки подключаются так: <svg class="icon"><use href="#i-send"/></svg>
+     ====================================================================== -->
+<svg id="icon-sprite" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-send" viewBox="0 0 24 24">
+    <!-- Самолётик, смотрит вправо, строго симметричен относительно y=12:
+         нос (22,12), крылья (2.5,3) и (2.5,21), перегиб (8.5,12).
+         Нижняя половина подкрашена (--icon-fill) — даёт объём. -->
+    <path d="M22 12H8.5l-6 9z" style="fill:var(--icon-fill,none);stroke:none"/>
+    <path d="M22 12 2.5 3l6 9-6 9z"/>
+    <path d="M8.5 12H22"/>
+  </symbol>
+<symbol id="i-attach" viewBox="0 0 24 24">
+    <path d="m20.5 11-8.6 8.6a5.2 5.2 0 0 1-7.4-7.4l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.7 8.6a1.8 1.8 0 0 1-2.5-2.5l8-8"/>
+  </symbol>
+<symbol id="i-settings" viewBox="0 0 24 24">
+    <path d="M4 6h9M17 6h3"/><circle cx="15" cy="6" r="2"/>
+    <path d="M4 12h3M11 12h9"/><circle cx="9" cy="12" r="2"/>
+    <path d="M4 18h11M19 18h1"/><circle cx="17" cy="18" r="2"/>
+  </symbol>
+<symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="11" cy="11" r="6.5"/>
+    <path d="m20 20-4.4-4.4"/>
+  </symbol>
+<symbol id="i-profile" viewBox="0 0 24 24">
+    <circle cx="12" cy="8" r="4"/>
+    <path d="M4.5 20.5c.6-3.6 3.6-6 7.5-6s6.9 2.4 7.5 6"/>
+  </symbol>
+<symbol id="i-mic" viewBox="0 0 24 24">
+    <rect x="9" y="3" width="6" height="11" rx="3"/>
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/>
+  </symbol>
+<symbol id="i-smile" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M8.2 14.2c.9 1.5 2.2 2.3 3.8 2.3s2.9-.8 3.8-2.3"/>
+    <path d="M9 9.6h.01M15 9.6h.01" stroke-width="2.4"/>
+  </symbol>
+<symbol id="i-menu" viewBox="0 0 24 24">
+    <path d="M4 7h16M4 12h16M4 17h16"/>
+  </symbol>
+<symbol id="i-close" viewBox="0 0 24 24">
+    <path d="m6 6 12 12M18 6 6 18"/>
+  </symbol>
+<symbol id="i-back" viewBox="0 0 24 24">
+    <path d="M19 12H5M11 6l-6 6 6 6"/>
+  </symbol>
+<symbol id="i-eye" viewBox="0 0 24 24">
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24">
+    <path d="M9.9 5.2A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.4 6.5C3.6 8.3 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1"/>
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+    <path d="m3 3 18 18"/>
+  </symbol>
+<symbol id="i-folder" viewBox="0 0 24 24">
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>
+  </symbol>
+<symbol id="i-file" viewBox="0 0 24 24">
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/>
+    <path d="M14 3v5h5M9 13h6M9 17h6"/>
+  </symbol>
+<symbol id="i-video" viewBox="0 0 24 24">
+    <rect x="3" y="6" width="13" height="12" rx="2.5"/>
+    <path d="m16 10.5 5-3v9l-5-3"/>
+  </symbol>
+<symbol id="i-photo" viewBox="0 0 24 24">
+    <rect x="3" y="4" width="18" height="16" rx="2.5"/>
+    <circle cx="9" cy="10" r="1.8"/>
+    <path d="m21 16-5-5-9 9"/>
+  </symbol>
+<symbol id="i-crop" viewBox="0 0 24 24">
+    <path d="M6 2v14a2 2 0 0 0 2 2h14"/>
+    <path d="M18 22V8a2 2 0 0 0-2-2H2"/>
+  </symbol>
+<symbol id="i-rotate" viewBox="0 0 24 24">
+    <path d="M20 12a8 8 0 1 1-2.5-5.8"/>
+    <path d="M20 4v5h-5"/>
+  </symbol>
+<symbol id="i-brush" viewBox="0 0 24 24">
+    <path d="M17.5 3.5a2.1 2.1 0 0 1 3 3L10.5 16.5 6 18l1.5-4.5 10-10z"/>
+    <path d="M3 21c1.7-1.6 2.8 1.2 4.5 0s2.8 1.2 4.5 0"/>
+  </symbol>
+<symbol id="i-text" viewBox="0 0 24 24">
+    <path d="M5 7V4.5h14V7M12 4.5v15M9 19.5h6"/>
+  </symbol>
+<symbol id="i-check" viewBox="0 0 24 24">
+    <path d="m5 12.5 4.5 4.5L19 7.5" pathLength="1"/>
+  </symbol>
+<symbol id="i-play" viewBox="0 0 24 24">
+    <path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4L8.2 3.8A.8.8 0 0 0 7 4.5z"/>
+  </symbol>
+<symbol id="i-pause" viewBox="0 0 24 24">
+    <path d="M8 5v14M16 5v14" stroke-width="2.6"/>
+  </symbol>
+</svg>
+
+<!-- Заставка при входе (assets/start.mp4). Видна сразу, скрывается ui/splash.js.
+     Запасной таймер ниже убирает её, даже если модули не загрузились. -->
+<div class="splash" id="splash">
+  <video id="splash-video" muted playsinline autoplay preload="auto" disablepictureinpicture src="assets/start.mp4"></video>
+</div>
+<script src="js/splash-failsafe.js"></script>
+
+<!-- Корень приложения. data-screen: auth | chat. data-chat-open: true | false -->
+<div class="app" id="app" data-screen="auth" data-chat-open="false">
+
+  <!-- ====================== Экран входа / регистрации ====================== -->
+  <main class="auth" id="screen-auth">
+    <div class="auth__card">
+      <header class="auth__brand">
+        <img class="auth__logo" src="assets/icon-192.png" width="80" height="80" alt="">
+        <h1 class="auth__title">Aqua</h1>
+        <p class="auth__subtitle">Только имя пользователя и пароль</p>
+      </header>
+
+      <div class="tabs" id="auth-tabs" role="tablist" data-active="login">
+        <span class="tabs__thumb" aria-hidden="true"></span>
+        <button class="tabs__tab" role="tab" id="tab-login" aria-selected="true" aria-controls="form-login" type="button">Вход</button>
+        <button class="tabs__tab" role="tab" id="tab-register" aria-selected="false" aria-controls="form-register" type="button">Регистрация</button>
+      </div>
+
+      <!-- Вход -->
+      <form id="form-login" role="tabpanel" aria-labelledby="tab-login" novalidate>
+        <div class="form-error" id="login-error" role="alert" hidden></div>
+        <div class="field">
+          <label class="field__label" for="login-username">Имя пользователя</label>
+          <input class="input" id="login-username" name="username" type="text" autocomplete="username"
+                 autocapitalize="none" autocorrect="off" spellcheck="false" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="login-password">Пароль</label>
+          <div class="field__control">
+            <input class="input" id="login-password" name="password" type="password" autocomplete="current-password" required>
+            <button class="btn-icon" type="button" data-toggle-password="login-password" aria-label="Показать пароль">
+              <svg class="icon"><use href="#i-eye"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="btn btn--primary btn--block" type="submit">Войти</button>
+      </form>
+
+      <!-- Регистрация -->
+      <form id="form-register" role="tabpanel" aria-labelledby="tab-register" novalidate hidden>
+        <div class="form-error" id="register-error" role="alert" hidden></div>
+        <div class="field">
+          <label class="field__label" for="reg-username">Имя пользователя</label>
+          <input class="input" id="reg-username" name="username" type="text" autocomplete="username"
+                 autocapitalize="none" autocorrect="off" spellcheck="false" required aria-describedby="reg-username-error">
+          <p class="field__error" id="reg-username-error"></p>
+        </div>
+        <div class="field">
+          <label class="field__label" for="reg-password">Пароль</label>
+          <div class="field__control">
+            <input class="input" id="reg-password" name="password" type="password" autocomplete="new-password"
+                   required aria-describedby="password-rules">
+            <button class="btn-icon" type="button" data-toggle-password="reg-password" aria-label="Показать пароль">
+              <svg class="icon"><use href="#i-eye"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Индикатор правил: JS (Этап 4) ставит .is-ok / .is-bad -->
+        <ul class="rules" id="password-rules" aria-live="polite">
+          <li class="rules__item" data-rule="length">Не менее 8 символов</li>
+          <li class="rules__item" data-rule="lower">Строчная латинская буква (a–z)</li>
+          <li class="rules__item" data-rule="digit">Цифра (0–9)</li>
+        </ul>
+        <button class="btn btn--primary btn--block" type="submit">Создать аккаунт</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- ============================== Мессенджер ============================== -->
+  <div class="messenger" id="screen-chat">
+
+    <!-- Боковая панель: список чатов -->
+    <aside class="sidebar" aria-label="Чаты">
+      <header class="sidebar__header">
+        <button class="btn-icon icon-anim-spin" type="button" id="btn-menu" aria-label="Меню">
+          <svg class="icon"><use href="#i-menu"/></svg>
+        </button>
+        <div class="sidebar__brand">
+          <img src="assets/icon-64.png" width="32" height="32" alt="">
+          <span>Aqua</span>
+        </div>
+      </header>
+
+      <div class="sidebar__search">
+        <label class="search">
+          <svg class="icon"><use href="#i-search"/></svg>
+          <span class="visually-hidden">Поиск</span>
+          <input class="input" type="search" id="search" placeholder="Поиск" autocomplete="off">
+        </label>
+      </div>
+
+      <!-- Список строится JS из GET /api/chats -->
+      <ul class="sidebar__list scroll" id="chat-list"></ul>
+    </aside>
+
+    <!-- Окно переписки -->
+    <section class="chat" aria-label="Переписка" data-empty="true">
+      <div class="chat__placeholder" id="chat-placeholder">
+        <img src="assets/icon-192.png" width="96" height="96" alt="" style="border-radius:1.5rem;box-shadow:var(--shadow-md)">
+        <p>Выберите чат или найдите человека через поиск</p>
+      </div>
+      <header class="chat__header">
+        <button class="btn-icon btn--back icon-anim-nudge" type="button" id="btn-back" aria-label="Назад к списку чатов">
+          <svg class="icon"><use href="#i-back"/></svg>
+        </button>
+        <div class="chat__peer">
+          <span id="peer-avatar"></span>
+          <div style="min-width:0">
+            <h2 class="peer__name" id="peer-name" style="font-size:1rem"></h2>
+            <!-- «в сети» / «был(а) в 12:30» / «печатает…» -->
+            <p class="peer__status" id="peer-status"></p>
+          </div>
+        </div>
+      </header>
+
+      <div class="chat__messages scroll" id="messages" aria-live="polite">
+        <!-- Индикатор «печатает…» — всегда последний в ленте -->
+        <div class="typing" id="typing-indicator" aria-label="Собеседник печатает" hidden>
+          <span class="typing__dot"></span><span class="typing__dot"></span><span class="typing__dot"></span>
+        </div>
+      </div>
+
+      <footer class="chat__composer">
+        <!-- Панель записи голосового (показывается вместо поля ввода) -->
+        <div class="recorder" id="recorder" hidden>
+          <button class="btn-icon icon-anim-turn" id="rec-cancel" type="button" aria-label="Отменить запись">
+            <svg class="icon icon--danger"><use href="#i-close"/></svg>
+          </button>
+          <span class="recorder__dot" aria-hidden="true"></span>
+          <span class="recorder__time" id="rec-time">0:00</span>
+          <div class="recorder__wave" id="rec-wave" aria-hidden="true"></div>
+          <button class="btn-icon btn-icon--send icon-anim-fly" id="rec-send" type="button" aria-label="Отправить голосовое сообщение">
+            <svg class="icon"><use href="#i-send"/></svg>
+          </button>
+        </div>
+        <form class="composer" id="composer" data-has-text="false">
+          <button class="btn-icon icon-anim-wiggle" type="button" id="btn-attach" aria-label="Прикрепить файл">
+            <svg class="icon"><use href="#i-attach"/></svg>
+          </button>
+          <textarea class="composer__input" id="message-input" rows="1" placeholder="Сообщение"
+                    aria-label="Сообщение" enterkeyhint="send"></textarea>
+          <button class="btn-icon icon-anim-tilt" type="button" id="btn-emoji" aria-label="Смайлики">
+            <svg class="icon"><use href="#i-smile"/></svg>
+          </button>
+          <div class="composer__action">
+            <button class="btn-icon btn-icon--voice icon-anim-pulse" type="button" id="btn-voice" aria-label="Записать голосовое сообщение">
+              <svg class="icon"><use href="#i-mic"/></svg>
+            </button>
+            <button class="btn-icon btn-icon--send icon-anim-fly" type="submit" id="btn-send" aria-label="Отправить">
+              <svg class="icon"><use href="#i-send"/></svg>
+            </button>
+          </div>
+        </form>
+      </footer>
+    </section>
+  </div>
+</div>
+
+<!-- ============================ Модальные окна ============================ -->
+<!-- Открытие/закрытие: JS переключает класс .is-open на .modal -->
+<div class="modal" id="modal-settings" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__dialog">
+    <header class="modal__header">
+      <h2 class="modal__title" id="modal-settings-title">Настройки</h2>
+      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть">
+        <svg class="icon"><use href="#i-close"/></svg>
+      </button>
+    </header>
+    <div class="modal__body scroll">
+      <p>Профиль: <strong id="settings-username"></strong></p>
+    </div>
+    <footer class="modal__footer">
+      <button class="btn btn--ghost" type="button" id="btn-logout">Выйти</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Файловый менеджер -->
+<div class="modal" id="modal-files" role="dialog" aria-modal="true" aria-labelledby="fm-title">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__dialog">
+    <header class="modal__header">
+      <button class="btn-icon icon-anim-turn" type="button" id="fm-back" aria-label="Назад" hidden><svg class="icon"><use href="#i-back"/></svg></button>
+      <h2 class="modal__title" id="fm-title">Файлы</h2>
+      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="modal__body scroll" id="fm-body"></div>
+    <footer class="modal__footer">
+      <button class="btn btn--primary" type="button" id="fm-device">С устройства</button>
+    </footer>
+    <input type="file" id="file-input" hidden accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,audio/*,application/pdf,application/zip,text/plain">
+  </div>
+</div>
+
+<!-- Редактор фото/видео -->
+<div class="modal modal--editor" id="modal-editor" role="dialog" aria-modal="true" aria-labelledby="editor-title" data-mode="photo">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__dialog">
+    <header class="modal__header">
+      <h2 class="modal__title" id="editor-title">Фото</h2>
+      <button class="btn-icon" type="button" id="editor-undo" aria-label="Отменить действие" disabled><svg class="icon"><use href="#i-rotate"/></svg></button>
+      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="editor__stage" id="editor-stage">
+      <canvas id="editor-canvas"></canvas>
+      <div class="crop" id="crop-box" hidden>
+        <i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i>
+      </div>
+      <input class="editor__text" id="editor-text-input" type="text" maxlength="60" placeholder="Текст" hidden>
+      <video id="editor-video" playsinline preload="metadata"></video>
+      <button class="editor__play btn-icon" type="button" id="editor-play" aria-label="Воспроизвести"><svg class="icon icon--white"><use href="#i-play"/></svg></button>
+    </div>
+    <div class="editor__tools" id="photo-tools"></div>
+    <div class="editor__tools" id="video-tools"></div>
+    <footer class="editor__footer">
+      <input class="editor__caption" id="editor-caption" type="text" maxlength="500" placeholder="Подпись…" autocomplete="off">
+      <button class="btn btn--primary" type="button" id="editor-done">Готово</button>
+    </footer>
+    <div class="editor__busy" id="editor-busy" hidden>
+      <div class="spinner"></div><p id="editor-busy-text">Обработка…</p>
+      <button class="btn btn--ghost" type="button" id="editor-cancel">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ES-модули: открывать через сервер (http://127.0.0.1:8000), не через file:// -->
+<script src="js/boot-check.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

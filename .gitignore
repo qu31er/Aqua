@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+node_modules/
+tests/shots/
+*.zip
+.env
+.venv/
+.pytest_cache/
+data/*
+!data/.gitkeep

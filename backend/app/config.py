@@ -1,0 +1,104 @@
+"""Конфигурация сервера Aqua.
+
+Все настройки читаются из переменных окружения, у каждой есть безопасное
+значение по умолчанию для локальной разработки.
+"""
+import os
+import secrets
+from pathlib import Path
+
+# --- Пути ---------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parents[2]          # корень проекта aqua/
+DATA_DIR = Path(os.getenv("AQUA_DATA_DIR", BASE_DIR / "data"))
+UPLOAD_DIR = DATA_DIR / "uploads"
+DB_PATH = Path(os.getenv("AQUA_DB_PATH", DATA_DIR / "aqua.db"))
+FRONTEND_DIR = BASE_DIR / "frontend"
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _load_secret_key() -> str:
+    """Секрет для подписи JWT.
+
+    Берём из AQUA_SECRET_KEY; если не задан — генерируем один раз и
+    сохраняем в data/secret.key (права 600), чтобы токены переживали перезапуск.
+    В продакшене лучше задавать переменную окружения явно.
+    """
+    env_key = os.getenv("AQUA_SECRET_KEY")
+    if env_key:
+        return env_key
+    key_file = DATA_DIR / "secret.key"
+    if key_file.exists():
+        return key_file.read_text().strip()
+    key = secrets.token_urlsafe(64)
+    key_file.write_text(key)
+    os.chmod(key_file, 0o600)
+    return key
+
+
+# --- Аутентификация ------------------------------------------------------
+SECRET_KEY = _load_secret_key()
+JWT_ALGORITHM = "HS256"
+JWT_TTL_HOURS = int(os.getenv("AQUA_JWT_TTL_HOURS", 24 * 7))
+BCRYPT_ROUNDS = int(os.getenv("AQUA_BCRYPT_ROUNDS", 12))
+
+# Ограничение попыток входа: не более N неудач за окно (секунды)
+LOGIN_MAX_FAILS = 5
+LOGIN_WINDOW_SEC = 300
+
+# --- Сообщения и медиа ---------------------------------------------------
+MAX_MESSAGE_LENGTH = 4000
+MAX_VOICE_SECONDS = 600                 # голосовое не длиннее 10 минут
+
+# Допустимые эмодзи-реакции. Список и порядок совпадают с js/config.js (REACTIONS).
+# ❤️ записано с селектором вариации U+FE0F — строки должны совпадать побайтно.
+ALLOWED_REACTIONS = ["\U0001F44D", "\u2764\ufe0f", "\U0001F602", "\U0001F62E",
+                     "\U0001F622", "\U0001F525", "\U0001F44F", "\U0001F389"]
+# --- Профиль ------------------------------------------------------------------
+DISPLAY_NAME_MAX = 40
+BIO_MAX = 300
+MAX_TRACKS = 20
+PRIVACY_FIELDS = ("who_can_write", "who_can_call", "who_can_voice")
+PRIVACY_VALUES = ("everyone", "contacts", "nobody")     # все / только те, кому я писал(а) / никто
+DEFAULT_PRIVACY = {f: "everyone" for f in PRIVACY_FIELDS}
+DEFAULT_QUICK_REACTION = ALLOWED_REACTIONS[0]
+MAX_UPLOAD_MB = int(os.getenv("AQUA_MAX_UPLOAD_MB", 50))
+MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+
+# Белый список MIME -> (расширение на диске, тип вложения).
+# Расширение выбираем сами и не доверяем имени файла от клиента.
+# SVG намеренно исключён: в нём может быть JavaScript (XSS).
+ALLOWED_MIME = {
+    "image/jpeg": (".jpg", "image"),
+    "image/png": (".png", "image"),
+    "image/gif": (".gif", "image"),
+    "image/webp": (".webp", "image"),
+    "video/mp4": (".mp4", "video"),
+    "video/webm": (".webm", "video"),
+    "video/quicktime": (".mov", "video"),
+    "audio/webm": (".weba", "voice"),   # MediaRecorder в Chrome/Firefox/Edge
+    "audio/ogg": (".ogg", "voice"),
+    "audio/mp4": (".m4a", "voice"),     # MediaRecorder в Safari
+    "audio/mpeg": (".mp3", "voice"),
+    "audio/wav": (".wav", "voice"),
+    "application/pdf": (".pdf", "file"),
+    "application/zip": (".zip", "file"),
+    "text/plain": (".txt", "file"),
+}
+
+# --- CORS ------------------------------------------------------------------
+# По умолчанию фронтенд отдаётся с того же origin, CORS не нужен.
+CORS_ORIGINS = [o for o in os.getenv("AQUA_CORS_ORIGINS", "").split(",") if o]
+
+# --- Заголовки безопасности -------------------------------------------------
+# CSP: скрипты и стили только свои (style-attr нужен для динамических --h/--hue и позиций).
+# blob: — локальные превью/плеер до отправки; ws:/wss: — WebSocket того же хоста.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self'; style-src-attr 'unsafe-inline'; "
+    "img-src 'self' blob: data:; media-src 'self' blob:; "
+    "connect-src 'self' ws: wss:; "
+    "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+)
