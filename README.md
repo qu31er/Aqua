@@ -19,7 +19,7 @@ aqua/
 │   │   └── routers/       # auth.py, chats.py, media.py, ws.py
 │   ├── tests/test_stage1.py
 │   └── requirements.txt
-├── frontend/assets/       # icon.png, start.mp4 (понадобятся на Этапах 2–5)
+├── frontend/assets/       # icon.png, start.webm (понадобятся на Этапах 2–5)
 └── data/                  # создаётся при запуске: aqua.db, uploads/, secret.key
 ```
 
@@ -98,7 +98,7 @@ ES-модули не работают через `file://`, поэтому ст�
 frontend/
 ├── index.html
 ├── css/        variables · base · layout · components · animations · icons
-├── assets/     icons.svg (источник спрайта), icon-*.png, start.mp4
+├── assets/     icons.svg (источник спрайта), icon-*.png, start.webm
 └── js/
     ├── app.js          # точка входа: связывает всё остальное
     ├── api.js          # fetch-обёртка, ApiError
@@ -118,7 +118,7 @@ frontend/
 
 ## Этап 5A: заставка, реакции, голосовые
 
-* **Заставка** — `assets/start.mp4` (вертикальное видео на зелёном фоне, поэтому фон слоя `#splash` задан тем же цветом). Показывается раз за сессию вкладки; закрывается по окончании, тапу, ошибке или через 4,5 с; при `prefers-reduced-motion` пропускается.
+* **Заставка** — `assets/start.webm` (VP9 с прозрачным фоном: зелёный фон исходного видео вырезан, поэтому приложение видно сразу, а карточка с логотипом играет поверх и плавно растворяется). Показывается раз за сессию вкладки; закрывается по окончании, тапу, ошибке или через несколько секунд; при `prefers-reduced-motion` и в Safari (нет прозрачного WebM) пропускается.
 * **Реакции** — `PUT /api/messages/{id}/reactions` `{emoji}` (переключатель), событие WS `reaction`. Список эмодзи: `ALLOWED_REACTIONS` (бэкенд) = `REACTIONS` (`js/config.js`). Открытие меню: ПКМ, двойной клик, долгое нажатие; на телефоне — шторка снизу.
 * **Голосовые** — запись `MediaRecorder` (webm/ogg, в Safari mp4), загрузка через `POST /api/media`, затем сообщение с `media_id` и `meta {duration, wave}`; волна рисуется из `meta.wave` без декодирования аудио. Запись работает по HTTPS или на localhost.
 * БД: у `messages` новый столбец `meta` (миграция при старте для старых баз).
@@ -134,3 +134,6 @@ frontend/
 ## Деплой
 См. `DEPLOY.md` (Railway: структура репозитория, Volume `/data`, переменные `AQUA_SECRET_KEY` и `AQUA_DATA_DIR`).
 Локально открывать нужно через сервер (`http://127.0.0.1:8000`), а не двойным кликом по `index.html`.
+
+## Android (APK)
+См. `android-app/README.md`: APK собирается в GitHub Actions (Capacitor), скачивается с телефона из Releases.

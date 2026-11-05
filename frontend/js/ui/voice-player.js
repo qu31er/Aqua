@@ -20,8 +20,9 @@ export function stopVoice() {
 /** @param {{src:string, duration?:number, wave?:number[]}} cfg */
 export function voicePlayer({ src, duration = 0, wave }) {
   const audio = new Audio();
-  audio.preload = 'metadata';
+  audio.preload = 'auto';
   audio.src = src;
+  let triedBlob = false;
 
   const levels = wave?.length ? wave : fallbackWave();
   const bars = levels.map((v) => el('span', { class: 'vp__bar', style: `--h:${Math.max(12, v)}` }));
@@ -56,7 +57,17 @@ export function voicePlayer({ src, duration = 0, wave }) {
   audio.addEventListener('play', () => setPlaying(true));
   audio.addEventListener('pause', () => setPlaying(false));
   audio.addEventListener('ended', () => { setPlaying(false); paint(0); time.textContent = fmt(total()); audio.currentTime = 0; });
-  audio.addEventListener('error', () => { time.textContent = '—'; });
+  // Запасной путь: если потоковое воспроизведение не пошло (Range/кодек/прокси), скачиваем файл целиком
+  audio.addEventListener('error', async () => {
+    if (triedBlob || src.startsWith('blob:')) { time.textContent = 'ошибка'; return; }
+    triedBlob = true;
+    try {
+      const res = await fetch(src);
+      if (!res.ok) throw new Error(String(res.status));
+      audio.src = URL.createObjectURL(await res.blob());
+      audio.load();
+    } catch { time.textContent = 'ошибка'; }
+  });
   audio.addEventListener('timeupdate', () => {
     const t = total();
     if (t > 0) paint(Math.min(1, audio.currentTime / t));

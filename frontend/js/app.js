@@ -238,7 +238,7 @@ function retrySend(clientId) {
 const sendText = (text) => enqueue({ text });
 
 function sendVoice({ blob, mime, duration, wave }) {
-  const ext = mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : 'webm';
+  const ext = mime.includes('wav') ? 'wav' : mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : 'webm';
   const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mime });
   enqueue({ kind: 'voice', file, meta: { duration: Math.round(duration * 100) / 100, wave }, localUrl: URL.createObjectURL(blob) });
 }

@@ -15,8 +15,12 @@ const login = async (page) => { await page.addInitScript(() => localStorage.setI
   let t = await setup(browser, { viewport: { width: 1000, height: 700 } }, { splash: true });
   await t.page.goto(URL);
   ok(await t.page.locator('#splash').count() === 1, 'заставка показана при входе');
-  ok(await t.page.locator('#splash-video').getAttribute('src') === 'assets/start.mp4', 'заставка использует start.mp4');
-  ok(await t.page.evaluate(() => getComputedStyle(document.getElementById('splash')).backgroundColor) === 'rgb(0, 175, 63)', 'фон слоя совпадает с зелёным фоном видео');
+  ok(await t.page.locator('#splash-video').getAttribute('src') === 'assets/start.webm', 'заставка использует start.webm (VP9 с прозрачностью)');
+  ok(await t.page.evaluate(() => getComputedStyle(document.getElementById('splash')).backgroundColor) === 'rgba(0, 0, 0, 0)', 'фон заставки прозрачный — приложение видно сразу');
+  await t.page.waitForFunction(() => document.getElementById('splash-video').currentTime > 0.4, null, { timeout: 5000 });
+  ok(true, 'видео заставки реально воспроизводится (currentTime растёт)');
+  ok(await t.page.locator('#screen-auth, #screen-chat').first().isVisible(), 'под заставкой видно экран приложения');
+  await t.page.screenshot({ path: OUT + '5b-splash-over-app.png' });
   await t.page.click('#splash').catch(() => {});                // тап — пропустить
   await t.page.waitForSelector('#splash', { state: 'detached', timeout: 3000 });
   ok(true, 'заставка закрывается по тапу и убирается из DOM');
@@ -120,7 +124,8 @@ const login = async (page) => { await page.addInitScript(() => localStorage.setI
   ok(true, 'голосовое сразу показано в ленте (локальный плеер)');
   await page.waitForTimeout(600);
   ok(be.uploads.length === 1 && be.uploads[0].ct.startsWith('multipart/form-data'), 'файл загружен как multipart (POST /media)');
-  ok(/name="file"; filename="voice-\d+\.(webm|ogg|m4a)"/.test(be.uploads[0].text) && /Content-Type: audio\//.test(be.uploads[0].text), 'в форме поле file, имя voice-*.webm, тип audio/*');
+  ok(/name="file"; filename="voice-\d+\.(wav|webm|ogg|m4a)"/.test(be.uploads[0].text) && /Content-Type: audio\//.test(be.uploads[0].text), 'в форме поле file, имя voice-*.webm, тип audio/*');
+  ok(/filename="voice-\d+\.wav"/.test(be.uploads[0].text) && /Content-Type: audio\/wav/.test(be.uploads[0].text), 'запись перекодирована в WAV (играет везде, точная длительность)');
   const vm = be.wsIn.find((d) => d.type === 'message' && d.media_id);
   ok(!!vm && vm.meta.duration >= 1 && vm.meta.duration < 5, 'сообщение ушло по WS с media_id и duration=' + vm?.meta?.duration);
   ok(vm.meta.wave.length === 40 && vm.meta.wave.every((v) => Number.isInteger(v) && v >= 10 && v <= 100), 'wave: 40 целых значений 10..100');

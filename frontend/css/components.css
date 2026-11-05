@@ -295,15 +295,17 @@
 .grid-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: .5rem; }
 
 /* ---------- Заставка ---------- */
+/* Фон прозрачный: приложение видно сразу, поверх него играет карточка с логотипом (видео с альфа-каналом).
+   В конце заставка плавно растворяется: чуть увеличивается и гаснет. */
 .splash {
-  --splash-bg: #00af3f;            /* цвет фона самого видео — чтобы на широких экранах не было границ */
   position: fixed; inset: 0; z-index: var(--z-splash);
   display: grid; place-items: center;
-  background: var(--splash-bg);
-  transition: opacity var(--dur-slow) var(--ease), visibility 0s linear var(--dur-slow);
+  background: transparent;
+  transition: opacity .7s var(--ease), -webkit-transform .7s var(--ease), transform .7s var(--ease), visibility 0s linear .7s;
 }
-.splash video { width: 100%; height: 100%; object-fit: contain; }   /* вертикальное видео не обрезаем */
-.splash.is-leaving { opacity: 0; visibility: hidden; }
+.splash video { width: 100%; height: 100%; object-fit: contain; background: transparent; }   /* вертикальное видео не обрезаем */
+.splash.is-leaving { opacity: 0; visibility: hidden; -webkit-transform: scale(1.08); transform: scale(1.08); }
+@media (prefers-reduced-motion: reduce) { .splash { transition: none; } }
 
 /* ---------- Уведомление-тост ---------- */
 .toast {

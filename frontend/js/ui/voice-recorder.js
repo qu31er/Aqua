@@ -3,9 +3,11 @@
 import { $, el } from '../dom.js';
 import { VOICE_MAX_MS, VOICE_MIN_MS, VOICE_WAVE_BARS } from '../config.js';
 import { haptic } from '../haptics.js';
+import { toWav } from './wav.js';
 
 // Chrome/Firefox/Edge пишут webm/ogg (opus), Safari — mp4 (aac). Берём первое поддерживаемое.
 const MIME_CANDIDATES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+const TAIL_MS = 300;                   // «хвост» записи после нажатия «отправить»
 const BAR_STEP_PX = 5;                 // ширина столбика + зазор в живой волне
 
 export const voiceSupported = () =>
@@ -40,7 +42,7 @@ export function initVoiceRecorder({ onSend, onError }) {
   const micBtn = $('#btn-voice');
 
   let recorder = null, stream = null, ctx = null, analyser = null, buf = null;
-  let sampleTimer = null, startedAt = 0, levels = [], chunks = [], discard = false, starting = false;
+  let sampleTimer = null, startedAt = 0, levels = [], chunks = [], discard = false, starting = false, stopping = false;
 
   let liveBars = [];
 
@@ -71,7 +73,7 @@ export function initVoiceRecorder({ onSend, onError }) {
     });
     const elapsed = performance.now() - startedAt;
     timeEl.textContent = fmtTime(elapsed);
-    if (elapsed >= VOICE_MAX_MS) stop(true);
+    if (elapsed >= VOICE_MAX_MS && !stopping) stop(true);
   }
 
   function releaseAudio() {
@@ -81,16 +83,22 @@ export function initVoiceRecorder({ onSend, onError }) {
     stream = ctx = analyser = null;
   }
 
-  function onStop() {
-    const duration = (performance.now() - startedAt) / 1000;
-    const mime = (recorder.mimeType || 'audio/webm').split(';')[0];
+  async function onStop() {
+    let duration = (performance.now() - startedAt) / 1000;
+    let mime = (recorder.mimeType || 'audio/webm').split(';')[0];
     const wave = makeWave(levels);
-    const blob = new Blob(chunks, { type: mime });
+    let blob = new Blob(chunks, { type: mime });
     releaseAudio();
-    setUi(false);
     recorder = null;
-    if (discard) return;
-    if (duration * 1000 < VOICE_MIN_MS) { onError('Слишком короткое сообщение — удерживайте дольше.'); return; }
+    if (discard) { setUi(false); return; }
+    if (duration * 1000 < VOICE_MIN_MS) { setUi(false); onError('Слишком короткое сообщение — удерживайте дольше.'); return; }
+    // Перекодируем в WAV: играет на любом устройстве, длительность точная, хвост не теряется.
+    // Если браузер не смог — отправляем как есть (исходный формат).
+    try {
+      const wav = await toWav(blob);
+      blob = wav.blob; duration = wav.duration; mime = 'audio/wav';
+    } catch { /* оставляем исходную запись */ }
+    setUi(false);
     onSend({ blob, mime, duration, wave });
   }
 
@@ -135,8 +143,15 @@ export function initVoiceRecorder({ onSend, onError }) {
   function stop(send) {
     if (!recorder || recorder.state === 'inactive') return;
     discard = !send;
-    clearInterval(sampleTimer);
-    recorder.stop();                                        // дальше сработает onStop
+    if (!send) { clearInterval(sampleTimer); recorder.stop(); return; }
+    // Отправка: пишем ещё ~0.3 с, иначе браузеры обрезают окончание фразы
+    if (stopping) return;
+    stopping = true;
+    setTimeout(() => {
+      clearInterval(sampleTimer);
+      stopping = false;
+      if (recorder && recorder.state !== 'inactive') { try { recorder.requestData(); } catch { /* ок */ } recorder.stop(); }
+    }, TAIL_MS);
   }
 
   $('#rec-cancel').addEventListener('click', () => { haptic.tap(); stop(false); });

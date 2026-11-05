@@ -8,3 +8,5 @@ tests/shots/
 .pytest_cache/
 data/*
 !data/.gitkeep
+android-app/node_modules/
+android-app/android/

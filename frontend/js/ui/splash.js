@@ -1,4 +1,4 @@
-/* Заставка при входе (assets/start.mp4).
+/* Заставка при входе (assets/start.webm — VP9 с прозрачным фоном: поверх уже видно приложение).
    Показывается один раз за сессию вкладки. Закрывается по окончанию видео, по тапу, при ошибке
    воспроизведения или по таймауту — приложение никогда не «застрянет» на заставке. */
 import { $ } from '../dom.js';
@@ -15,6 +15,12 @@ export function initSplash() {
     splash.remove();
     return Promise.resolve();
   }
+  // WebM с прозрачностью умеют Chrome/Edge/Firefox/Android WebView; Safari рисует прозрачное чёрным — там заставку пропускаем
+  const isSafari = /^((?!chrome|chromium|android|crios|fxios).)*safari/i.test(navigator.userAgent);
+  if (isSafari || !video.canPlayType('video/webm; codecs="vp9"')) {
+    splash.remove();
+    return Promise.resolve();
+  }
   session.set(SPLASH_KEY, '1');
 
   return new Promise((resolve) => {
@@ -23,7 +29,7 @@ export function initSplash() {
       if (done) return;
       done = true;
       splash.classList.add('is-leaving');                          // плавное растворение
-      setTimeout(() => { splash.remove(); resolve(); }, 450);
+      setTimeout(() => { splash.remove(); resolve(); }, 700);
     };
     video.addEventListener('ended', finish);
     video.addEventListener('error', finish);
