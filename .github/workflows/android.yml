@@ -41,19 +41,9 @@ jobs:
           npx cap add android
 
       - name: Разрешения (микрофон для голосовых) и иконка
-        working-directory: android-app
         run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />#' "$MANIFEST"
-          grep -q RECORD_AUDIO "$MANIFEST" || { echo "::error::Не удалось добавить разрешение микрофона"; exit 1; }
-          RES=android/app/src/main/res
-          rm -rf "$RES"/mipmap-anydpi-v26
-          for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-            d=${pair%%:*}; s=${pair##*:}
-            convert ../frontend/assets/icon-512.png -resize ${s}x${s} "$RES/mipmap-$d/ic_launcher.png"
-            cp "$RES/mipmap-$d/ic_launcher.png" "$RES/mipmap-$d/ic_launcher_round.png"
-            cp "$RES/mipmap-$d/ic_launcher.png" "$RES/mipmap-$d/ic_launcher_foreground.png"
-          done
+          pip install pillow
+          python3 android-app/prepare_android.py
 
       - name: Синхронизация и сборка debug-APK
         working-directory: android-app
