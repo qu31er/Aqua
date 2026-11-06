@@ -36,7 +36,7 @@ function messageNode(m, opts = {}) {
     opts.group && !mine ? el('div', { class: 'msg__author', text: m.sender.username }) : null,
     m.media ? mediaNode(m.media, m.kind, m.meta, m.cover) : null,
     m.text ? el('p', { class: 'msg__text', text: m.text }) : null,
-    el('span', { class: 'msg__meta', text: timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : '') }));
+    el('span', { class: 'msg__meta', text: (m.edited_at ? 'изменено · ' : '') + timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : '') }));
   const node = el('article', {
     class: `msg msg--${mine ? 'out' : 'in'}${opts.animate ? ' is-new' : ''}${opts.pending ? ' is-pending' : ''}${opts.failed ? ' is-failed' : ''}`,
     dataset: { id: m.id, ...(m.clientId ? { clientId: m.clientId } : {}) },
@@ -123,6 +123,22 @@ export function appendMessage(m, chat, { forceScroll = false } = {}) {
   const stick = forceScroll || nearBottom();
   insertNodes(buildNodes([m], chat, { animate: true }));
   if (stick) scrollToBottom(true);
+}
+
+/** Обновляет показанное сообщение (после изменения текста) без перерисовки всей ленты. */
+export function updateMessage(m, chat) {
+  const node = messagesEl.querySelector(`.msg[data-id="${m.id}"]`);
+  if (node) node.replaceWith(messageNode(m, { group: chat.type === 'group' }));
+}
+
+/** Перерисовка ленты с сохранением места прокрутки (после удаления сообщения). */
+export function refreshMessages(chat) {
+  const top = messagesEl.scrollTop, wasBottom = nearBottom();
+  const h = state.history.get(chat.id);
+  const items = [...(h?.items ?? []), ...(state.pending.get(chat.id) ?? []).map(pendingToMessage)];
+  lastDay = null;
+  messagesEl.replaceChildren(...buildNodes(items, chat), typingEl);
+  if (wasBottom) scrollToBottom(); else messagesEl.scrollTop = top;
 }
 
 /** Заменяет «временное» сообщение настоящим. Возвращает false, если временного узла нет в ленте. */

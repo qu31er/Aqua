@@ -118,7 +118,9 @@ def serialize_chat(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> di
         other = next((m for m in members if m["id"] != viewer_id), None)
         title = (other["display_name"] or other["username"]) if other else "—"
     last = conn.execute(
-        "SELECT id FROM messages WHERE chat_id = ? ORDER BY id DESC LIMIT 1", (chat_id,)
+        "SELECT id FROM messages WHERE chat_id = ? "
+        "AND id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?) ORDER BY id DESC LIMIT 1",
+        (chat_id, viewer_id),
     ).fetchone()
     return {
         "id": chat["id"],
@@ -197,7 +199,7 @@ def create_group_chat(
 _MESSAGE_SELECT = """
     SELECT m.id, m.chat_id, m.sender_id, u.username AS sender_username,
            u.display_name AS sender_display, u.avatar_id AS sender_avatar, m.kind, m.text,
-           m.media_id, m.meta, m.cover_id, m.created_at, md.original_name, md.mime, md.size
+           m.media_id, m.meta, m.cover_id, m.created_at, m.edited_at, md.original_name, md.mime, md.size
     FROM messages m
     JOIN users u ON u.id = m.sender_id
     LEFT JOIN media md ON md.id = m.media_id
@@ -227,6 +229,7 @@ def serialize_message(row: sqlite3.Row) -> dict:
         "cover": {"id": row["cover_id"], "url": f"/api/media/{row['cover_id']}"} if row["cover_id"] else None,
         "reactions": [],                                            # заполняет attach_reactions
         "created_at": row["created_at"],
+        "edited_at": row["edited_at"],
     }
 
 
@@ -282,11 +285,15 @@ def get_message(conn: sqlite3.Connection, message_id: int) -> dict:
 
 
 def get_history(
-    conn: sqlite3.Connection, chat_id: int, before_id: int | None, limit: int
+    conn: sqlite3.Connection, chat_id: int, before_id: int | None, limit: int, viewer_id: int | None = None
 ) -> list[dict]:
-    """Страница истории: последние `limit` сообщений старше `before_id`, по возрастанию."""
+    """Страница истории: последние `limit` сообщений старше `before_id`, по возрастанию.
+    Сообщения, скрытые зрителем («удалить у себя»), не показываем."""
     params: list = [chat_id]
     where = " WHERE m.chat_id = ?"
+    if viewer_id is not None:
+        where += " AND m.id NOT IN (SELECT message_id FROM message_hidden WHERE user_id = ?)"
+        params.append(viewer_id)
     if before_id is not None:
         where += " AND m.id < ?"
         params.append(before_id)
@@ -411,3 +418,49 @@ def media_summary(conn: sqlite3.Connection, user_id: int) -> dict:
     for r in conn.execute("SELECT kind, COUNT(*) AS n FROM media WHERE owner_id = ? GROUP BY kind", (user_id,)):
         counts[r["kind"]] = r["n"]
     return counts
+
+
+# --- Изменение и удаление сообщений -----------------------------------------------
+def _own_or_member_message(conn: sqlite3.Connection, message_id: int, user_id: int) -> sqlite3.Row:
+    """Сообщение, к которому у пользователя есть доступ (он участник чата). Иначе 404, чтобы не раскрывать id."""
+    row = conn.execute("SELECT * FROM messages WHERE id = ?", (message_id,)).fetchone()
+    if row is None or conn.execute(
+        "SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?", (row["chat_id"], user_id)
+    ).fetchone() is None:
+        raise ServiceError(404, "Сообщение не найдено.")
+    return row
+
+
+def edit_message(conn: sqlite3.Connection, message_id: int, user_id: int, text: str | None) -> dict:
+    """Меняет текст (или подпись к медиа) своего сообщения. Голосовые изменить нельзя."""
+    row = _own_or_member_message(conn, message_id, user_id)
+    if row["sender_id"] != user_id:
+        raise ServiceError(403, "Можно изменять только свои сообщения.")
+    if row["kind"] == "voice":
+        raise ServiceError(400, "Голосовое сообщение нельзя изменить.")
+    text = (text or "").strip()
+    if len(text) > config.MAX_MESSAGE_LENGTH:
+        raise ServiceError(400, f"Сообщение длиннее {config.MAX_MESSAGE_LENGTH} символов.")
+    if not text and row["kind"] == "text":
+        raise ServiceError(400, "Сообщение не может быть пустым.")
+    conn.execute("UPDATE messages SET text = ?, edited_at = ? WHERE id = ?", (text or None, now_iso(), message_id))
+    return attach_reactions(conn, [get_message(conn, message_id)])[0]
+
+
+def delete_message(conn: sqlite3.Connection, message_id: int, user_id: int, scope: str) -> int:
+    """scope='all' — удалить у всех (только автор); scope='me' — скрыть только у себя. Возвращает chat_id."""
+    row = _own_or_member_message(conn, message_id, user_id)
+    if scope == "all":
+        if row["sender_id"] != user_id:
+            raise ServiceError(403, "Удалить у всех можно только свои сообщения.")
+        conn.execute("DELETE FROM messages WHERE id = ?", (message_id,))      # реакции и «скрытия» уйдут каскадом
+    elif scope == "me":
+        conn.execute("INSERT OR IGNORE INTO message_hidden (message_id, user_id) VALUES (?, ?)", (message_id, user_id))
+    else:
+        raise ServiceError(422, "scope: all или me.")
+    return row["chat_id"]
+
+
+def last_message_for(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> dict | None:
+    """Актуальное «последнее сообщение» чата для конкретного зрителя (после удаления/скрытия)."""
+    return serialize_chat(conn, chat_id, viewer_id)["last_message"]

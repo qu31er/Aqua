@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS messages (
     media_id   INTEGER REFERENCES media(id) ON DELETE SET NULL,
     meta       TEXT,                           -- JSON: для голосовых {duration, wave}
     cover_id   INTEGER REFERENCES media(id) ON DELETE SET NULL,   -- обложка видео (картинка из media)
-    created_at TEXT    NOT NULL
+    created_at TEXT    NOT NULL,
+    edited_at  TEXT                            -- когда сообщение изменили (NULL — не менялось)
 );
 -- Основной индекс для пагинации истории: последние N сообщений чата.
 CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, id DESC);
@@ -83,6 +84,13 @@ CREATE TABLE IF NOT EXISTS profile_tracks (
     created_at TEXT    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_tracks_user ON profile_tracks(user_id, id);
+
+-- «Удалить у себя»: сообщение скрыто только для этого пользователя.
+CREATE TABLE IF NOT EXISTS message_hidden (
+    message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (message_id, user_id)
+);
 
 -- Реакции: одна пара (сообщение, пользователь, эмодзи) — одна строка.
 CREATE TABLE IF NOT EXISTS reactions (
@@ -128,6 +136,8 @@ def init_db(path: Path = DB_PATH) -> None:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(messages)")}
         if "meta" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN meta TEXT")
+        if "edited_at" not in cols:
+            conn.execute("ALTER TABLE messages ADD COLUMN edited_at TEXT")
         if "cover_id" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN cover_id INTEGER REFERENCES media(id) ON DELETE SET NULL")
         # Миграция Этапа 6: поля профиля

@@ -1,6 +1,6 @@
 /* Эмодзи-реакции: контекстное меню (ПКМ / двойной клик / долгое нажатие) и клик по «чипам».
    На телефоне меню — «шторка» снизу (стили в components.css), на десктопе — всплывает над сообщением. */
-import { el } from '../dom.js';
+import { el, icon } from '../dom.js';
 import { REACTIONS } from '../config.js';
 import { haptic } from '../haptics.js';
 import { onLongPress } from '../touch.js';
@@ -9,6 +9,26 @@ const isMobile = () => window.matchMedia('(max-width: 47.99rem)').matches;
 const isRealId = (id) => /^\d+$/.test(id || '');        // у «отправляемых» сообщений id временный
 let menu = null;
 let outsideHandler = null;
+
+/** Кнопка действия. Опасное действие (confirm) требует второго нажатия в течение 3 секунд. */
+function actionButton(a) {
+  const label = el('span', { text: a.label });
+  let armed = null;
+  const btn = el('button', {
+    class: `menu__action${a.danger ? ' is-danger' : ''}`, type: 'button', role: 'menuitem',
+    onclick: () => {
+      if (a.confirm && !armed) {
+        label.textContent = a.confirm; btn.classList.add('is-armed'); haptic.tap();
+        armed = setTimeout(() => { armed = null; label.textContent = a.label; btn.classList.remove('is-armed'); }, 3000);
+        return;
+      }
+      clearTimeout(armed);
+      closeReactionMenu();
+      a.run();
+    },
+  }, icon(a.icon), label);
+  return btn;
+}
 
 export function closeReactionMenu() {
   menu?.remove();
@@ -21,10 +41,12 @@ export function closeReactionMenu() {
 
 /**
  * @param {{container:HTMLElement, onPick:(messageId:number, emoji:string)=>void,
- *          getMine:(messageId:number)=>string[]}} cfg
+ *          getMine:(messageId:number)=>string[],
+ *          getActions?:(messageId:number)=>{icon:string,label:string,danger?:boolean,confirm?:string,run:()=>void}[]}} cfg
  *   getMine — какие эмодзи пользователь уже поставил (для подсветки в меню)
+ *   getActions — действия под реакциями (копировать, изменить, удалить); confirm — текст второго нажатия
  */
-export function initReactions({ container, onPick, getMine }) {
+export function initReactions({ container, onPick, getMine, getActions = () => [] }) {
   function open(bubble) {
     const msg = bubble.closest('.msg');
     if (!msg || !isRealId(msg.dataset.id) || msg.classList.contains('is-pending')) return;
@@ -32,12 +54,14 @@ export function initReactions({ container, onPick, getMine }) {
     closeReactionMenu();
 
     const mine = new Set(getMine(id));
-    menu = el('div', { class: 'menu', role: 'menu', 'aria-label': 'Реакции' },
-      REACTIONS.map((emoji) => el('button', {
+    const actions = getActions(id);
+    menu = el('div', { class: 'menu', role: 'menu', 'aria-label': 'Сообщение' },
+      el('div', { class: 'menu__row' }, REACTIONS.map((emoji) => el('button', {
         class: `menu__item${mine.has(emoji) ? ' is-active' : ''}`, type: 'button', role: 'menuitem',
         'aria-label': emoji, text: emoji,
         onclick: () => { closeReactionMenu(); haptic.tap(); onPick(id, emoji); },
-      })));
+      }))),
+      actions.length ? el('div', { class: 'menu__list' }, actions.map(actionButton)) : null);
     document.body.append(menu);
 
     if (!isMobile()) {

@@ -28,16 +28,18 @@ function makeBackend() {
   for (let i = 0; i < 120; i++) add(1, i % 2 ? me : bob, 'старое сообщение ' + i, 2000 - i * 10);
   add(1, bob, 'Привет! Как дела?', 5);
   add(2, carl, 'Скинул макеты', 90);
+  const hidden = new Set();                           // «удалено у себя»
+  const lastOf = (c) => msgs[c].filter((x) => !hidden.has(x.id)).at(-1) || null;
   const chats = () => [
-    { id: 1, type: 'direct', title: 'bob', created_at: iso(9999), members: [me, bob], last_message: msgs[1].at(-1) },
-    { id: 2, type: 'direct', title: 'carl', created_at: iso(9999), members: [me, carl], last_message: msgs[2].at(-1) }];
+    { id: 1, type: 'direct', title: 'bob', created_at: iso(9999), members: [me, bob], last_message: lastOf(1) },
+    { id: 2, type: 'direct', title: 'carl', created_at: iso(9999), members: [me, carl], last_message: lastOf(2) }];
   const toggle = (id, emoji, userId) => {
     const r = (reactions[id] ??= {}); const u = (r[emoji] ??= []);
     const i = u.indexOf(userId); if (i >= 0) u.splice(i, 1); else u.push(userId);
     const m = Object.values(msgs).flat().find((x) => x.id === id); if (m) m.reactions = reactionsOf(id);
     return reactionsOf(id);
   };
-  return { me, bob, carl, msgs, media, chats, add, toggle, reactionsOf, reqs: [], wsIn: [], uploads: [],
+  return { hidden, me, bob, carl, msgs, media, chats, add, toggle, reactionsOf, reqs: [], deleted: [], wsIn: [], uploads: [],
     newMedia: (o) => (media[++mediaId] = { id: mediaId, ...o }) };
 }
 
@@ -87,6 +89,28 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
       return json(200, be.msgs[m[1]].filter((x) => x.id < before).slice(-lim));
     }
     if (path === '/users/search') return json(200, [be.carl, { id: 4, username: 'dave', online: false, last_seen: null }].filter((x) => x.username.includes(u.searchParams.get('q'))));
+    m = path.match(/^\/messages\/(\d+)$/);
+    if (m && (req.method() === 'PATCH' || req.method() === 'DELETE')) {
+      const id = +m[1];
+      const [chat, list] = Object.entries(be.msgs).find(([, a]) => a.some((x) => x.id === id)) || [];
+      if (!list) return json(404, { detail: 'Сообщение не найдено.' });
+      const msg = list.find((x) => x.id === id);
+      if (req.method() === 'PATCH') {
+        if (msg.sender.id !== be.me.id) return json(403, { detail: 'Можно изменять только свои сообщения.' });
+        const text = (JSON.parse(req.postData() || '{}').text || '').trim();
+        if (!text && msg.kind === 'text') return json(400, { detail: 'Сообщение не может быть пустым.' });
+        msg.text = text || null; msg.edited_at = iso(0);
+        setTimeout(() => push({ type: 'message_edited', message: msg }), 20);
+        return json(200, msg);
+      }
+      const scope = u.searchParams.get('scope');
+      if (scope === 'all' && msg.sender.id !== be.me.id) return json(403, { detail: 'Удалить у всех можно только свои сообщения.' });
+      be.deleted.push({ id, scope });
+      if (scope === 'all') list.splice(list.indexOf(msg), 1); else be.hidden.add(id);
+      const rest = list.filter((x) => !(be.hidden?.has(x.id)));
+      setTimeout(() => push({ type: 'message_deleted', chat_id: +chat, message_id: id, scope, last_message: rest.at(-1) || null }), 20);
+      return json(200, { ok: true, chat_id: +chat, message_id: id, scope });
+    }
     m = path.match(/^\/messages\/(\d+)\/reactions$/);
     if (m && req.method() === 'PUT') {
       const id = +m[1], emoji = req.postDataJSON().emoji;

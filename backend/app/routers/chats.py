@@ -90,7 +90,7 @@ def get_messages(
         services.require_member(conn, chat_id, user["id"])
     except ServiceError as e:
         _raise(e)
-    return services.get_history(conn, chat_id, before_id, limit)
+    return services.get_history(conn, chat_id, before_id, limit, user["id"])
 
 
 class MessageCreate(BaseModel):

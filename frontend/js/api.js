@@ -67,6 +67,8 @@ export const api = {
   toggleReaction: (messageId, emoji) =>
     request(`/messages/${messageId}/reactions`, { method: 'PUT', json: { emoji } }),
   uploadMedia: (file) => { const form = new FormData(); form.append('file', file); return request('/media', { method: 'POST', form }); },
+  editMessage: (id, text) => request(`/messages/${id}`, { method: 'PATCH', json: { text } }),
+  deleteMessage: (id, scope) => request(`/messages/${id}?scope=${scope}`, { method: 'DELETE' }),
   mediaSummary: () => request('/media/summary'),
   recentMedia: (kind) => request(`/media${kind ? `?kind=${kind}` : ''}`),
 };

@@ -17,8 +17,10 @@ import { initChatList } from './ui/chat-list.js';
 import {
   initChatView, setEmpty, renderHeader, renderStatus, renderMessages, appendMessage,
   resolvePending, markFailed, prependMessages, setTyping, showLoader, scrollToBottom, setReactions,
+  updateMessage, refreshMessages,
 } from './ui/chat-view.js';
 import { initComposer } from './ui/composer.js';
+import { copyText } from './ui/clipboard.js';
 import { initSplash } from './ui/splash.js';
 import { initReactions, closeReactionMenu } from './ui/reactions.js';
 import { stopVoice } from './ui/voice-player.js';
@@ -273,6 +275,60 @@ async function handleExisting(item) {
   enqueue({ kind: item.kind, mediaId: item.id, mediaInfo: item, meta: null });
 }
 
+/* ============================== Действия с сообщениями ============================== */
+const findMessage = (id) => state.history.get(state.activeChatId)?.items.find((m) => m.id === id);
+
+function messageActions(id) {
+  const m = findMessage(id);
+  if (!m) return [];
+  const mine = m.sender.id === state.user.id;
+  const list = [];
+  if (m.text) list.push({ icon: 'i-copy', label: 'Копировать', run: async () => toast((await copyText(m.text)) ? 'Скопировано' : 'Не удалось скопировать') });
+  if (mine && m.kind !== 'voice') {
+    list.push({ icon: 'i-edit', label: 'Изменить', run: () => composer.startEdit({ id: m.id, text: m.text, allowEmpty: m.kind !== 'text' }) });
+  }
+  list.push({ icon: 'i-trash', label: 'Удалить у меня', danger: true, run: () => removeMessage(id, 'me') });
+  if (mine) list.push({ icon: 'i-trash', label: 'Удалить у всех', danger: true, confirm: 'Точно удалить у всех?', run: () => removeMessage(id, 'all') });
+  return list;
+}
+
+async function removeMessage(id, scope) {
+  try {
+    const res = await api.deleteMessage(id, scope);
+    applyDeleted({ chat_id: res.chat_id, message_id: id, last_message: undefined });   // WS-событие уточнит «последнее сообщение»
+  } catch (e) { toast(e.message); haptic.error(); }
+}
+
+async function saveEdit(id, text) {
+  try { applyEdited(await api.editMessage(id, text)); }
+  catch (e) { toast(e.message); haptic.error(); }
+}
+
+/** Сообщение изменено (нами или собеседником). Идемпотентно: вызывается и из ответа API, и из WS. */
+function applyEdited(m) {
+  const h = state.history.get(m.chat_id);
+  const i = h?.items.findIndex((x) => x.id === m.id) ?? -1;
+  if (i >= 0) h.items[i] = { ...h.items[i], ...m };
+  const chat = state.chats.get(m.chat_id);
+  if (chat?.last_message?.id === m.id) chat.last_message = { ...chat.last_message, ...m };
+  if (m.chat_id === state.activeChatId && chat) updateMessage(h?.items[i] ?? m, chat);
+  renderList();
+}
+
+/** Сообщение удалено (у всех или только у нас). */
+function applyDeleted({ chat_id: chatId, message_id: id, last_message: last }) {
+  const h = state.history.get(chatId);
+  if (h) h.items = h.items.filter((x) => x.id !== id);
+  const chat = state.chats.get(chatId);
+  if (chat) {
+    if (last !== undefined) chat.last_message = last;
+    else if (chat.last_message?.id === id) chat.last_message = h?.items.at(-1) ?? chat.last_message;   // временно, до WS-события
+    sortChats();
+  }
+  if (chatId === state.activeChatId && chat) refreshMessages(chat);
+  renderList();
+}
+
 /* ============================== Реакции ============================== */
 function applyReactions(chatId, messageId, reactions) {
   const m = state.history.get(chatId)?.items.find((x) => x.id === messageId);
@@ -366,6 +422,8 @@ socket.on('presence', ({ user_id, online, last_seen }) => {
   const chat = activeChat();
   if (chat) renderHeader(chat);
 });
+socket.on('message_edited', ({ message }) => applyEdited(message));
+socket.on('message_deleted', (e) => applyDeleted(e));
 socket.on('reaction', ({ chat_id, message_id, reactions }) => applyReactions(chat_id, message_id, reactions));
 socket.on('chat_created', ({ chat }) => { upsertChat(chat); renderList(); });
 socket.on('error', ({ detail }) => {
@@ -410,6 +468,7 @@ initChatView({
 });
 const composer = initComposer({
   onSend: (text) => sendText(text),
+  onEdit: saveEdit,
   onTyping: (isTyping) => { if (state.activeChatId) socket.send({ type: 'typing', chat_id: state.activeChatId, is_typing: isTyping }); },
   onAttach: () => { if (state.activeChatId) fileManager.open(); },
   onVoice: () => { if (state.activeChatId) voiceRecorder.start(); },
@@ -421,6 +480,7 @@ const voiceRecorder = initVoiceRecorder({ onSend: sendVoice, onError: (msg) => {
 initReactions({
   container: $('#messages'),
   onPick: pickReaction,
+  getActions: messageActions,
   getMine: (id) => (state.history.get(state.activeChatId)?.items.find((m) => m.id === id)?.reactions ?? [])
     .filter((r) => r.users.includes(state.user.id)).map((r) => r.emoji),
 });

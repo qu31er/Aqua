@@ -109,6 +109,18 @@
 <symbol id="i-check" viewBox="0 0 24 24">
     <path d="m5 12.5 4.5 4.5L19 7.5" pathLength="1"/>
   </symbol>
+<symbol id="i-copy" viewBox="0 0 24 24">
+    <rect x="9" y="9" width="11" height="12" rx="2.5"/>
+    <path d="M5.5 15H5a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2H12a2 2 0 0 1 2 2V6"/>
+  </symbol>
+<symbol id="i-edit" viewBox="0 0 24 24">
+    <path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z"/>
+    <path d="m14.5 7.5 3 3"/>
+  </symbol>
+<symbol id="i-trash" viewBox="0 0 24 24">
+    <path d="M4 7h16M10 3.5h4M6.5 7l.8 12a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9l.8-12"/>
+    <path d="M10 11v6M14 11v6"/>
+  </symbol>
 <symbol id="i-play" viewBox="0 0 24 24">
     <path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4L8.2 3.8A.8.8 0 0 0 7 4.5z"/>
   </symbol>
@@ -258,6 +270,11 @@
           <button class="btn-icon btn-icon--send icon-anim-fly" id="rec-send" type="button" aria-label="Отправить голосовое сообщение">
             <svg class="icon"><use href="#i-send"/></svg>
           </button>
+        </div>
+        <div class="edit-bar" id="edit-bar" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg>
+          <div><b>Редактирование</b><span id="edit-bar-text"></span></div>
+          <button class="btn-icon" type="button" id="edit-cancel" aria-label="Отменить редактирование"><svg class="icon"><use href="#i-close"/></svg></button>
         </div>
         <form class="composer" id="composer" data-has-text="false">
           <button class="btn-icon icon-anim-wiggle" type="button" id="btn-attach" aria-label="Прикрепить файл">

@@ -8,7 +8,7 @@ const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
 /**
  * @param {{onSend:(text:string)=>void, onTyping:(isTyping:boolean)=>void, onAttach:()=>void, onVoice:()=>void, onEmoji:()=>void}} h
  */
-export function initComposer({ onSend, onTyping, onAttach, onVoice, onEmoji }) {
+export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEmoji }) {
   const form = $('#composer');
   const input = $('#message-input');
   const sendBtn = $('#btn-send');
@@ -16,11 +16,13 @@ export function initComposer({ onSend, onTyping, onAttach, onVoice, onEmoji }) {
   let typingSentAt = 0;
   let idleTimer = null;
   let typingActive = false;
+  let editing = null;                                   // {id, original, allowEmpty} — режим редактирования
+  const bar = $('#edit-bar');
 
   function autosize() {
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, 128)}px`;   // 8rem — как max-height в CSS
-    form.dataset.hasText = String(input.value.trim().length > 0);
+    form.dataset.hasText = String(Boolean(editing) || input.value.trim().length > 0);
   }
 
   function stopTyping() {
@@ -54,6 +56,13 @@ export function initComposer({ onSend, onTyping, onAttach, onVoice, onEmoji }) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = input.value.trim();
+    if (editing) {
+      const { id, original, allowEmpty } = editing;
+      if (!text && !allowEmpty) return;                 // у текстового сообщения подпись не может стать пустой
+      endEdit();
+      if (text !== original) onEdit(id, text);
+      return;
+    }
     if (!text) return;
     stopTyping();
     onSend(text);
@@ -65,13 +74,32 @@ export function initComposer({ onSend, onTyping, onAttach, onVoice, onEmoji }) {
     input.focus();
   });
 
+  function endEdit() {
+    editing = null;
+    bar.hidden = true;
+    input.value = '';
+    autosize();
+  }
+  $('#edit-cancel').addEventListener('click', endEdit);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Escape' && editing) endEdit(); });
+
   $('#btn-attach').addEventListener('click', onAttach);
   $('#btn-voice').addEventListener('click', onVoice);
   $('#btn-emoji').addEventListener('click', onEmoji);
 
   return {
     focus: () => { if (!isTouch()) input.focus(); },   // на телефоне не открываем клавиатуру сама по себе
-    reset() { input.value = ''; autosize(); stopTyping(); },
+    /** Режим редактирования: текст сообщения попадает в поле, отправка сохраняет изменение. */
+    startEdit({ id, text, allowEmpty }) {
+      editing = { id, original: text || '', allowEmpty: Boolean(allowEmpty) };
+      $('#edit-bar-text').textContent = text || 'Подпись';
+      bar.hidden = false;
+      input.value = text || '';
+      autosize();
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    },
+    reset() { editing = null; bar.hidden = true; input.value = ''; autosize(); stopTyping(); },
     stopTyping,
   };
 }

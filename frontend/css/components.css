@@ -228,10 +228,22 @@
 /* ---------- Контекстное меню реакций ---------- */
 .menu {
   position: fixed; z-index: var(--z-menu);
-  display: flex; gap: .25rem; padding: .375rem;
-  background: #fff; border-radius: var(--radius-pill); box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: .25rem; padding: .375rem;
+  background: #fff; border-radius: 1.5rem; box-shadow: var(--shadow-lg);
   transform-origin: center bottom;
 }
+.menu__row { display: flex; gap: .25rem; justify-content: space-between; }
+.menu__list { display: flex; flex-direction: column; border-top: 1px solid var(--aqua-100); padding-top: .25rem; min-width: 13rem; }
+.menu__action {
+  display: flex; align-items: center; gap: .75rem; padding: .625rem .75rem; border-radius: var(--radius-md);
+  text-align: left; font-size: var(--fs-md, 1rem); color: var(--aqua-navy);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.menu__action:hover { background: var(--aqua-100); }
+.menu__action .icon { flex: none; }
+.menu__action.is-danger { color: #c0392b; }
+.menu__action.is-danger .icon { stroke: #c0392b; }
+.menu__action.is-armed { background: #fdecea; font-weight: 700; }
 .menu__item {
   width: 2.5rem; height: 2.5rem; border-radius: 50%; font-size: 1.4rem; line-height: 1;
   transition: transform var(--dur-fast) var(--ease-back), background-color var(--dur-fast);
@@ -243,11 +255,14 @@
 @media (max-width: 47.99rem) {
   .menu {
     left: 0; right: 0; bottom: 0;
-    justify-content: space-around;
+    gap: .5rem;
     padding: .75rem 1rem calc(.75rem + var(--safe-bottom));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     transform-origin: center bottom;
   }
+  .menu__row { justify-content: space-around; }
+  .menu__list { min-width: 0; }
+  .menu__action { padding: .875rem .75rem; }
 }
 
 /* ---------- Модальные окна ---------- */
@@ -376,3 +391,12 @@
 
 /* Подсказка, если приложение не стартовало (js/boot-check.js) */
 .boot-banner { position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 9999; padding: .875rem 1rem; border-radius: var(--radius-md, 12px); background: #146CA4; color: #fff; font-size: .9375rem; line-height: 1.4; box-shadow: 0 8px 24px rgba(10,58,92,.35); }
+
+/* Панель «Редактирование» над полем ввода */
+.edit-bar { display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem; margin-bottom: .5rem;
+  border-left: 3px solid var(--aqua-teal); border-radius: var(--radius-sm); background: var(--aqua-100); }
+.edit-bar[hidden] { display: none; }
+.edit-bar > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.edit-bar b { font-size: var(--fs-sm); color: var(--aqua-navy); }
+.edit-bar span { font-size: var(--fs-sm); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg__edited { opacity: .75; }
