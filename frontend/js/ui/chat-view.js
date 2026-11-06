@@ -92,7 +92,7 @@ export function setEmpty(empty) { chatEl.dataset.empty = String(empty); }
 
 export function renderHeader(chat) {
   const peer = peerOf(chat);
-  $('#peer-avatar').replaceChildren(avatar(chat.title, { online: Boolean(peer?.online), small: true }));
+  $('#peer-avatar').replaceChildren(avatar(chat.title, { online: Boolean(peer?.online), small: true, user: peer }));
   $('#peer-name').textContent = chat.title;
   renderStatus(chat);
 }

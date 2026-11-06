@@ -325,16 +325,47 @@
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__dialog">
     <header class="modal__header">
-      <h2 class="modal__title" id="modal-settings-title">Настройки</h2>
+      <h2 class="modal__title" id="modal-settings-title">Профиль</h2>
       <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть">
         <svg class="icon"><use href="#i-close"/></svg>
       </button>
     </header>
     <div class="modal__body scroll">
-      <p>Профиль: <strong id="settings-username"></strong></p>
+      <!-- Просмотр -->
+      <div class="profile" id="profile-view">
+        <div class="profile__avatar" id="profile-avatar"></div>
+        <h3 class="profile__name" id="profile-name"></h3>
+        <p class="profile__login" id="profile-login"></p>
+        <p class="profile__bio" id="profile-bio"></p>
+      </div>
+      <!-- Редактирование -->
+      <form class="profile-edit" id="profile-edit" hidden>
+        <div class="profile__avatar"><button type="button" class="profile__avatar-btn" id="profile-avatar-edit" aria-label="Сменить аватар"></button></div>
+        <div class="avatar-picker" id="avatar-picker" role="radiogroup" aria-label="Системные аватарки"></div>
+        <div class="avatar-picker__actions">
+          <button class="btn btn--ghost" type="button" id="avatar-upload">Загрузить своё фото</button>
+          <button class="btn btn--ghost" type="button" id="avatar-reset">Убрать</button>
+          <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp" hidden>
+        </div>
+        <div class="field">
+          <label class="field__label" for="profile-nick">Ник</label>
+          <input class="input" id="profile-nick" maxlength="40" autocomplete="off" placeholder="Ваш ник" required>
+        </div>
+        <div class="field">
+          <label class="field__label">Логин</label>
+          <input class="input" id="profile-login-ro" readonly aria-readonly="true">
+        </div>
+        <div class="field">
+          <label class="field__label" for="profile-bio-input">О себе</label>
+          <textarea class="input" id="profile-bio-input" rows="3" maxlength="300" placeholder="Несколько слов о себе"></textarea>
+        </div>
+      </form>
     </div>
     <footer class="modal__footer">
       <button class="btn btn--ghost" type="button" id="btn-logout">Выйти</button>
+      <button class="btn btn--ghost" type="button" id="profile-cancel" hidden>Отмена</button>
+      <button class="btn btn--primary" type="button" id="profile-edit-btn">Изменить</button>
+      <button class="btn btn--primary" type="button" id="profile-save" hidden>Сохранить</button>
     </footer>
   </div>
 </div>

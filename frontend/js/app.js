@@ -21,6 +21,7 @@ import {
 } from './ui/chat-view.js';
 import { initComposer } from './ui/composer.js';
 import { initPicker } from './ui/picker.js';
+import { initProfile } from './ui/profile.js';
 import { copyText } from './ui/clipboard.js';
 import { initSplash } from './ui/splash.js';
 import { initReactions, closeReactionMenu } from './ui/reactions.js';
@@ -51,6 +52,20 @@ async function authenticate(request) {
   await enterApp(user);
 }
 
+/** Профиль обновлён (нами или пришёл по WS): правим пользователя в чатах и перерисовываем. */
+function applyProfile(u) {
+  if (u.id === state.user.id) state.user = { ...state.user, ...u };
+  for (const chat of state.chats.values()) {
+    chat.members = chat.members.map((m) => (m.id === u.id ? { ...m, ...u } : m));
+    if (chat.type === 'direct' && chat.members.some((m) => m.id === u.id) && u.id !== state.user.id) chat.title = u.display_name || u.username;
+  }
+  profile.render();
+  renderList();
+  const chat = activeChat();
+  if (chat) renderHeader(chat);
+}
+const profile = initProfile({ onChange: applyProfile });
+
 const authView = initAuthView({
   onLogin: (u, p) => authenticate(api.login(u, p)),
   onRegister: (u, p) => authenticate(api.register(u, p)),
@@ -58,7 +73,7 @@ const authView = initAuthView({
 
 async function enterApp(user) {
   state.user = user;
-  $('#settings-username').textContent = user.username;
+  profile.render();
   setEmpty(true);
   showScreen('chat');
   await loadChats();
@@ -425,6 +440,7 @@ socket.on('presence', ({ user_id, online, last_seen }) => {
   const chat = activeChat();
   if (chat) renderHeader(chat);
 });
+socket.on('profile', ({ user }) => applyProfile(user));
 socket.on('message_edited', ({ message }) => applyEdited(message));
 socket.on('message_deleted', (e) => applyDeleted(e));
 socket.on('reaction', ({ chat_id, message_id, reactions }) => applyReactions(chat_id, message_id, reactions));
@@ -504,7 +520,7 @@ initReactions({
 });
 
 $('#btn-back').addEventListener('click', goBack);
-$('#btn-menu').addEventListener('click', () => openModal('modal-settings'));
+$('#btn-menu').addEventListener('click', () => { profile.render(); openModal('modal-settings'); });
 $('#btn-logout').addEventListener('click', () => logout());
 
 initModals();

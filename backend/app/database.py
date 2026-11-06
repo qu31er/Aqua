@@ -144,7 +144,7 @@ def init_db(path: Path = DB_PATH) -> None:
         ucols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
         for col, ddl in (("display_name", "TEXT"), ("bio", "TEXT"),
                          ("avatar_id", "INTEGER REFERENCES media(id) ON DELETE SET NULL"),
-                         ("privacy", "TEXT"), ("prefs", "TEXT")):
+                         ("privacy", "TEXT"), ("prefs", "TEXT"), ("avatar_preset", "TEXT")):
             if col not in ucols:
                 conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
         conn.commit()

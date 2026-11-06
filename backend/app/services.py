@@ -46,8 +46,13 @@ def get_prefs(row: sqlite3.Row) -> dict:
     return prefs
 
 
-def avatar_ref(media_id: int | None) -> dict | None:
-    return {"id": media_id, "url": f"/api/media/{media_id}"} if media_id else None
+def avatar_ref(media_id: int | None, preset: str | None = None) -> dict | None:
+    """Аватар: своя картинка (media) или системная заготовка (preset — имя файла assets/avatars/<preset>.svg)."""
+    if media_id:
+        return {"id": media_id, "url": f"/api/media/{media_id}"}
+    if preset in config.AVATAR_PRESETS:
+        return {"preset": preset}
+    return None
 
 
 def serialize_user(row: sqlite3.Row) -> dict:
@@ -56,7 +61,7 @@ def serialize_user(row: sqlite3.Row) -> dict:
         "id": row["id"],
         "username": row["username"],
         "display_name": row["display_name"] or row["username"],
-        "avatar": avatar_ref(row["avatar_id"]),
+        "avatar": avatar_ref(row["avatar_id"], row["avatar_preset"]),
         "online": manager.is_online(row["id"]),
         "last_seen": row["last_seen"],
     }
@@ -198,7 +203,7 @@ def create_group_chat(
 # --- Сообщения -----------------------------------------------------------------
 _MESSAGE_SELECT = """
     SELECT m.id, m.chat_id, m.sender_id, u.username AS sender_username,
-           u.display_name AS sender_display, u.avatar_id AS sender_avatar, m.kind, m.text,
+           u.display_name AS sender_display, u.avatar_id AS sender_avatar, u.avatar_preset AS sender_preset, m.kind, m.text,
            m.media_id, m.meta, m.cover_id, m.created_at, m.edited_at, md.original_name, md.mime, md.size
     FROM messages m
     JOIN users u ON u.id = m.sender_id
@@ -221,7 +226,7 @@ def serialize_message(row: sqlite3.Row) -> dict:
         "chat_id": row["chat_id"],
         "sender": {"id": row["sender_id"], "username": row["sender_username"],
                    "display_name": row["sender_display"] or row["sender_username"],
-                   "avatar": avatar_ref(row["sender_avatar"])},
+                   "avatar": avatar_ref(row["sender_avatar"], row["sender_preset"])},
         "kind": row["kind"],
         "text": row["text"],
         "media": media,

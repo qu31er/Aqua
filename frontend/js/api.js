@@ -69,6 +69,7 @@ export const api = {
   uploadMedia: (file) => { const form = new FormData(); form.append('file', file); return request('/media', { method: 'POST', form }); },
   editMessage: (id, text) => request(`/messages/${id}`, { method: 'PATCH', json: { text } }),
   deleteMessage: (id, scope) => request(`/messages/${id}?scope=${scope}`, { method: 'DELETE' }),
+  updateProfile: (body) => request('/profile', { method: 'PATCH', json: body }),
   gifStatus: () => request('/gifs/status'),
   gifSearch: (q, pos) => request(`/gifs/search?q=${encodeURIComponent(q)}&pos=${pos}`),
   gifImport: (url, title) => request('/gifs/import', { method: 'POST', json: { url, title } }),

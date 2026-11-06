@@ -81,6 +81,14 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
     if (path === '/auth/register') return json(201, { token: 'tok', token_type: 'bearer', user: be.me });
     if (path === '/auth/login') return req.postDataJSON().password === 'secret123'
       ? json(200, { token: 'tok', token_type: 'bearer', user: be.me }) : json(401, { detail: 'Неверное имя пользователя или пароль.' });
+    if (path === '/profile' && req.method() === 'PATCH') {
+      const d = req.postDataJSON(); be.profilePatches = (be.profilePatches || []); be.profilePatches.push(d);
+      if ('display_name' in d) be.me.display_name = d.display_name || be.me.username;
+      if ('bio' in d) be.me.bio = d.bio;
+      if ('avatar_preset' in d) be.me.avatar = d.avatar_preset ? { preset: d.avatar_preset } : null;
+      if ('avatar_id' in d) be.me.avatar = d.avatar_id ? { id: d.avatar_id, url: `/api/media/${d.avatar_id}` } : null;
+      return json(200, be.me);
+    }
     if (path === '/auth/me') return json(200, be.me);
     if (path === '/chats' && req.method() === 'GET') return json(200, be.chats());
     let m = path.match(/^\/chats\/(\d+)\/messages$/);

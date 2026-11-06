@@ -30,7 +30,7 @@ function chatItem(chat) {
         class: `chat-item${chat.id === state.activeChatId ? ' is-active' : ''}`,
         type: 'button', dataset: { chatId: chat.id },
       },
-      avatar(chat.title, { online: Boolean(peer?.online) }),
+      avatar(chat.title, { online: Boolean(peer?.online), user: peer }),
       el('span', { class: 'chat-item__body' },
         el('span', { class: 'chat-item__row' },
           el('span', { class: 'chat-item__name', text: chat.title }),
@@ -44,7 +44,7 @@ function chatItem(chat) {
 function userItem(user) {
   return el('li', {},
     el('button', { class: 'chat-item', type: 'button', dataset: { username: user.username } },
-      avatar(user.username, { online: user.online }),
+      avatar(user.display_name || user.username, { online: user.online, user }),
       el('span', { class: 'chat-item__body' },
         el('span', { class: 'chat-item__name', text: user.username }),
         el('span', { class: 'chat-item__preview', text: 'Написать сообщение' }))));

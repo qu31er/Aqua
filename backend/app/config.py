@@ -91,6 +91,9 @@ ALLOWED_MIME = {
     "text/plain": (".txt", "file"),
 }
 
+# Системные аватарки: файлы лежат в frontend/assets/avatars/<id>.svg
+AVATAR_PRESETS = ("wave", "fish", "shell", "anchor", "starfish", "sun", "moon", "drop", "boat", "jelly", "turtle", "pearl")
+
 # --- GIF-поиск -------------------------------------------------------------------
 # Tenor API закрыт Google (2026), поэтому поддерживаем GIPHY и Klipy. Ключ задаётся переменной окружения;
 # если заданы оба, используется Klipy. Без ключа вкладка GIF показывает подсказку.

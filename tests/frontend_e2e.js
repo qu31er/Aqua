@@ -152,7 +152,7 @@ const { setup } = require('./mock.js');
   await page.waitForSelector('#chat-list .chat-item');
   await page.click('#btn-menu'); await page.waitForTimeout(300);
   ok(await page.locator('#modal-settings.is-open').count()===1,'меню открывает настройки (модальное окно)');
-  ok((await page.textContent('#settings-username'))==='alice','в настройках имя пользователя');
+  ok((await page.textContent('#profile-login'))==='@alice','в профиле логин с @');
   await page.click('#btn-logout'); await page.waitForTimeout(200);
   ok(await page.locator('#app').getAttribute('data-screen')==='auth' && !(await page.evaluate(()=>localStorage.getItem('aqua.token'))),'выход: экран входа, токен удалён');
   await t.ctx.close();

@@ -51,7 +51,8 @@ def user_profile(user_id: int, _: sqlite3.Row = Depends(get_current_user), conn:
 class ProfileUpdate(BaseModel):
     display_name: str | None = Field(None, max_length=100)
     bio: str | None = Field(None, max_length=1000)
-    avatar_id: int | None = None          # null — убрать аватар
+    avatar_id: int | None = None          # своя картинка; null — убрать
+    avatar_preset: str | None = None      # системная аватарка (имя из config.AVATAR_PRESETS)
 
 
 @router.patch("/profile")
@@ -75,6 +76,14 @@ async def update_profile(data: ProfileUpdate, user: sqlite3.Row = Depends(get_cu
         if data.avatar_id is not None:
             _own_image(conn, data.avatar_id, user["id"])
         fields["avatar_id"] = data.avatar_id
+        if data.avatar_id is not None:
+            fields["avatar_preset"] = None
+    if "avatar_preset" in sent:
+        if data.avatar_preset is not None and data.avatar_preset not in config.AVATAR_PRESETS:
+            raise HTTPException(422, "Неизвестная системная аватарка.")
+        fields["avatar_preset"] = data.avatar_preset
+        if data.avatar_preset is not None:
+            fields["avatar_id"] = None
     if fields:
         conn.execute(f"UPDATE users SET {', '.join(f'{k} = ?' for k in fields)} WHERE id = ?",
                      (*fields.values(), user["id"]))
