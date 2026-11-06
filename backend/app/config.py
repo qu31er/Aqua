@@ -9,7 +9,11 @@ from pathlib import Path
 
 # --- Пути ---------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parents[2]          # корень проекта aqua/
-DATA_DIR = Path(os.getenv("AQUA_DATA_DIR", BASE_DIR / "data"))
+# Где хранятся база и загрузки. Порядок: AQUA_DATA_DIR → том Railway (RAILWAY_VOLUME_MOUNT_PATH, задаётся
+# автоматически, когда к сервису подключён Volume) → папка data/ в проекте (на Railway она стирается при деплое!).
+_VOLUME = os.getenv("AQUA_DATA_DIR") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+DATA_DIR = Path(_VOLUME) if _VOLUME else BASE_DIR / "data"
+DATA_PERSISTENT = bool(_VOLUME)          # False — данные пропадут при перезапуске/деплое в облаке
 UPLOAD_DIR = DATA_DIR / "uploads"
 DB_PATH = Path(os.getenv("AQUA_DB_PATH", DATA_DIR / "aqua.db"))
 FRONTEND_DIR = BASE_DIR / "frontend"

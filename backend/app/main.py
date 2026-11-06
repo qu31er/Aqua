@@ -3,6 +3,8 @@
 Запуск (из папки backend/):
     uvicorn app.main:app --reload
 """
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -17,6 +19,11 @@ from .routers import auth, chats, media, message_ops, profile, reactions, ws
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()          # создаём таблицы при старте
+    log = logging.getLogger("uvicorn.error")
+    log.info("Aqua: данные в %s (база: %s)", config.DATA_DIR, config.DB_PATH)
+    if not config.DATA_PERSISTENT and (os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID")):
+        log.warning("Aqua: ВНИМАНИЕ — Volume не подключён, база и файлы будут стёрты при следующем деплое. "
+                    "Добавьте Volume (Mount path /data) к сервису.")
     yield
 
 

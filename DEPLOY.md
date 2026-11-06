@@ -19,7 +19,7 @@ aqua/                    ← корень репозитория
 
 ## 2. Railway
 1. New Project → Deploy from GitHub repo → выберите репозиторий. Сборку и команду запуска Railway возьмёт из `railway.json`.
-2. **Volume:** сервис → Settings → Volumes → Add Volume, Mount path `/data`. Без него база и файлы пропадают при каждом деплое.
+2. **Volume (без него база стирается при каждом деплое и перезапуске):** сервис → Settings → Volumes → Add Volume, Mount path `/data`. Без него база и файлы пропадают при каждом деплое.
 3. **Variables:** `AQUA_SECRET_KEY` (длинная случайная строка), `AQUA_DATA_DIR=/data`.
 4. Settings → Networking → Generate Domain. Откройте выданный адрес (https://…up.railway.app).
 5. Реплика должна быть одна: SQLite и список подключений WebSocket живут в одном процессе.
@@ -33,3 +33,8 @@ pip install -r requirements.txt
 cd backend && uvicorn app.main:app --reload
 # открыть http://127.0.0.1:8000  (не файлом index.html!)
 ```
+
+## Постоянная база данных
+Сервер сам берёт путь тома Railway (`RAILWAY_VOLUME_MOUNT_PATH`) или `AQUA_DATA_DIR`. В логах при запуске видно строку
+`Aqua: данные в /data`; если Volume не подключён, будет предупреждение `ВНИМАНИЕ — Volume не подключён`.
+Проверка: зарегистрируйтесь, нажмите Redeploy и войдите снова — аккаунт и сообщения должны остаться.
