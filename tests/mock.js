@@ -131,6 +131,19 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
       const { bytes, ...pub } = rec;
       return json(201, { ...pub, url: `/api/media/${rec.id}` });
     }
+    if (path === '/gifs/status') return json(200, { enabled: be.gifsEnabled !== false, provider: 'giphy' });
+    if (path === '/gifs/search') {
+      const q = u.searchParams.get('q'), pos = +u.searchParams.get('pos');
+      be.gifQueries = (be.gifQueries || []); be.gifQueries.push(q + '@' + pos);
+      const items = Array.from({ length: 6 }, (_, i) => ({ id: `g${pos + i}`, title: `${q || 'hot'} ${pos + i}`, preview: `https://media.giphy.com/p${pos + i}.gif`, url: `https://media.giphy.com/f${pos + i}.gif`, w: 200, h: 120 + i * 20 }));
+      return json(200, { items, next: pos < 6 ? pos + 6 : null });
+    }
+    if (path === '/gifs/proxy') return route.fulfill({ status: 200, contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAIAAAKLRjwAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==', 'base64') });
+    if (path === '/gifs/import' && req.method() === 'POST') {
+      (be.gifImports = be.gifImports || []).push(req.postDataJSON().url);
+      const rec = be.newMedia({ kind: 'image', name: 'gif-1.gif', mime: 'image/gif', size: 43, created_at: iso(0) });
+      const { bytes, ...pub } = rec; return json(201, { ...pub, url: `/api/media/${rec.id}` });
+    }
     if (path === '/media/summary') {
       const out = { image: 0, video: 0, voice: 0, file: 0 };
       Object.values(be.media).forEach((x) => { out[x.kind]++; });

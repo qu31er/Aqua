@@ -57,6 +57,10 @@
     <path d="M8.2 14.2c.9 1.5 2.2 2.3 3.8 2.3s2.9-.8 3.8-2.3"/>
     <path d="M9 9.6h.01M15 9.6h.01" stroke-width="2.4"/>
   </symbol>
+<symbol id="i-gif" viewBox="0 0 24 24">
+    <rect x="2.5" y="5.5" width="19" height="13" rx="3.5"/>
+    <path d="M10.2 10.4a2.2 2.2 0 1 0 0 3.2v-1.3H8.9M13 9.6v4.8M15.6 14.4V9.6h2.8M15.6 12h2"/>
+  </symbol>
 <symbol id="i-menu" viewBox="0 0 24 24">
     <path d="M4 7h16M4 12h16M4 17h16"/>
   </symbol>
@@ -275,6 +279,22 @@
           <svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg>
           <div><b>Редактирование</b><span id="edit-bar-text"></span></div>
           <button class="btn-icon" type="button" id="edit-cancel" aria-label="Отменить редактирование"><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="picker" id="picker" hidden>
+          <div class="picker__tabs" role="tablist">
+            <button class="picker__tab" type="button" role="tab" data-tab="emoji">Смайлики</button>
+            <button class="picker__tab" type="button" role="tab" data-tab="gif">GIF</button>
+            <button class="btn-icon picker__close" type="button" id="picker-close" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+          </div>
+          <div class="picker__pane" id="picker-emoji" hidden>
+            <div class="picker__cats" id="emoji-cats"></div>
+            <div class="picker__grid picker__grid--emoji" id="emoji-grid"></div>
+          </div>
+          <div class="picker__pane" id="picker-gif" hidden>
+            <input class="picker__search" id="gif-search" type="search" placeholder="Поиск GIF" autocomplete="off" aria-label="Поиск GIF">
+            <div class="picker__gifs" id="gif-grid"></div>
+            <p class="picker__note" id="gif-note" hidden></p>
+          </div>
         </div>
         <form class="composer" id="composer" data-has-text="false">
           <button class="btn-icon icon-anim-wiggle" type="button" id="btn-attach" aria-label="Прикрепить файл">

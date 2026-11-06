@@ -91,6 +91,16 @@ ALLOWED_MIME = {
     "text/plain": (".txt", "file"),
 }
 
+# --- GIF-поиск -------------------------------------------------------------------
+# Tenor API закрыт Google (2026), поэтому поддерживаем GIPHY и Klipy. Ключ задаётся переменной окружения;
+# если заданы оба, используется Klipy. Без ключа вкладка GIF показывает подсказку.
+GIPHY_API_KEY = os.getenv("GIPHY_API_KEY", "").strip()
+KLIPY_API_KEY = os.getenv("KLIPY_API_KEY", "").strip()
+# Скачивать и проксировать разрешено только с доменов GIF-сервисов (защита от SSRF).
+GIF_HOST_SUFFIXES = ("giphy.com", "klipy.com", "klipy.co")
+GIF_MAX_BYTES = 10 * 1024 * 1024
+GIF_PAGE_SIZE = 24
+
 # --- CORS ------------------------------------------------------------------
 # По умолчанию фронтенд отдаётся с того же origin, CORS не нужен.
 CORS_ORIGINS = [o for o in os.getenv("AQUA_CORS_ORIGINS", "").split(",") if o]

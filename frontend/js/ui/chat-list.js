@@ -9,7 +9,7 @@ const KIND_LABEL = { image: 'Фото', video: 'Видео', voice: 'Голос�
 function previewText(chat) {
   const m = chat.last_message;
   if (!m) return 'Нет сообщений';
-  let text = m.text || KIND_LABEL[m.kind] || '';
+  let text = m.text || (m.media?.mime === 'image/gif' ? 'GIF' : KIND_LABEL[m.kind]) || '';
   if (m.sender.id === state.user.id) text = `Вы: ${text}`;
   else if (chat.type === 'group') text = `${m.sender.username}: ${text}`;
   return text;

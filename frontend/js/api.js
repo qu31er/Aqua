@@ -69,9 +69,15 @@ export const api = {
   uploadMedia: (file) => { const form = new FormData(); form.append('file', file); return request('/media', { method: 'POST', form }); },
   editMessage: (id, text) => request(`/messages/${id}`, { method: 'PATCH', json: { text } }),
   deleteMessage: (id, scope) => request(`/messages/${id}?scope=${scope}`, { method: 'DELETE' }),
+  gifStatus: () => request('/gifs/status'),
+  gifSearch: (q, pos) => request(`/gifs/search?q=${encodeURIComponent(q)}&pos=${pos}`),
+  gifImport: (url, title) => request('/gifs/import', { method: 'POST', json: { url, title } }),
   mediaSummary: () => request('/media/summary'),
   recentMedia: (kind) => request(`/media${kind ? `?kind=${kind}` : ''}`),
 };
 
 /** URL файла с токеном (теги <img>/<video>/<audio> не умеют слать заголовки). */
 export const mediaUrl = (url) => `${url}?token=${encodeURIComponent(token || '')}`;
+
+/** Превью GIF идёт через наш сервер (CSP не пускает на чужие CDN). */
+export const gifProxyUrl = (u) => `${API_BASE}/gifs/proxy?u=${encodeURIComponent(u)}&token=${encodeURIComponent(token || '')}`;

@@ -88,6 +88,17 @@ export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEm
   $('#btn-emoji').addEventListener('click', onEmoji);
 
   return {
+    /** Вставка текста (смайлика) в позицию курсора. */
+    insert(text) {
+      const a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a;
+      input.setRangeText(text, a, b, 'end');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    /** Значок кнопки справа от поля: 'smile' или 'gif' (запоминаемая вкладка пикера). */
+    setPickerIcon(tab) {
+      $('#btn-emoji use').setAttribute('href', tab === 'gif' ? '#i-gif' : '#i-smile');
+    },
+    setPickerOpen: (open) => $('#btn-emoji').setAttribute('aria-expanded', String(open)),
     focus: () => { if (!isTouch()) input.focus(); },   // на телефоне не открываем клавиатуру сама по себе
     /** Режим редактирования: текст сообщения попадает в поле, отправка сохраняет изменение. */
     startEdit({ id, text, allowEmpty }) {

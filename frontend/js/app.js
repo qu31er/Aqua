@@ -20,6 +20,7 @@ import {
   updateMessage, refreshMessages,
 } from './ui/chat-view.js';
 import { initComposer } from './ui/composer.js';
+import { initPicker } from './ui/picker.js';
 import { copyText } from './ui/clipboard.js';
 import { initSplash } from './ui/splash.js';
 import { initReactions, closeReactionMenu } from './ui/reactions.js';
@@ -74,6 +75,7 @@ function logout(message) {
   closeModal('modal-settings');
   stopMedia();
   app.dataset.chatOpen = 'false';
+  picker.close();
   composer.reset();
   authView.reset();
   showScreen('auth');
@@ -128,6 +130,7 @@ function closeChat() {
   state.activeChatId = null;
   app.dataset.chatOpen = 'false';
   setEmpty(true);
+  picker.close();
   composer.reset();
   renderList();
 }
@@ -472,7 +475,22 @@ const composer = initComposer({
   onTyping: (isTyping) => { if (state.activeChatId) socket.send({ type: 'typing', chat_id: state.activeChatId, is_typing: isTyping }); },
   onAttach: () => { if (state.activeChatId) fileManager.open(); },
   onVoice: () => { if (state.activeChatId) voiceRecorder.start(); },
-  onEmoji: () => toast('Смайлики появятся на следующем этапе'),
+  onEmoji: () => picker.toggle(),
+});
+
+/** Панель смайликов/GIF: смайлик вставляется в текст, GIF импортируется и уходит как изображение. */
+const picker = initPicker({
+  onEmoji: (e) => composer.insert(e),
+  onGif: async (it) => {
+    if (!state.activeChatId) return;
+    try {
+      const media = await api.gifImport(it.url, it.title);
+      enqueue({ kind: 'image', mediaId: media.id, mediaInfo: media, meta: null });
+      picker.close();
+    } catch (e) { toast(e.message || 'Не удалось отправить GIF.'); haptic.error(); }
+  },
+  onTabChange: (tab) => composer.setPickerIcon(tab),
+  onToggle: (open) => composer.setPickerOpen(open),
 });
 
 const fileManager = initFileManager({ onDeviceFile: handleFile, onPickExisting: handleExisting });
