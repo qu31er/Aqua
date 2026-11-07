@@ -101,8 +101,8 @@ async function enterApp(user) {
   renderNavAvatar();
   profile.render();
   setEmpty(true);
+  await loadChats();                            // сначала данные, потом экран — без мигания пустого списка
   showScreen('chat');
-  await loadChats();
   socket.connect();
 }
 

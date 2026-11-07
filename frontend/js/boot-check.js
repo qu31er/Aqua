@@ -20,6 +20,14 @@
     if (!started) { e.preventDefault(); check(true); }
   }, true);
 
+  // Экран «boot» скрыт; если модули так и не запустились — показываем вход и подсказку
+  setTimeout(function () {
+    if (started) return;
+    var app = document.getElementById('app');
+    if (app && app.dataset.screen === 'boot') app.dataset.screen = 'auth';
+    check(true);
+  }, 4000);
+
   function check(force) {
     if (started) return;
     if (location.protocol === 'file:') {

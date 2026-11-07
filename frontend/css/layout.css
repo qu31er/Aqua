@@ -3,7 +3,7 @@
    далее расширяем media-запросами (планшет ≥48rem, десктоп ≥75rem).
 
    Состояния корня #app (управляются JS на Этапе 4):
-     data-screen="auth" | "chat"        — какой экран показан
+     data-screen="boot" | "auth" | "chat" — какой экран показан (boot: проверяем сохранённый вход, ничего не мигает)
      data-chat-open="true" | "false"    — на телефоне: открыт ли диалог поверх списка
    ========================================================================== */
 
@@ -16,6 +16,8 @@
   overflow: hidden;
 }
 
+.app[data-screen="boot"] .messenger,
+.app[data-screen="boot"] .auth,
 .app[data-screen="auth"] .messenger { display: none; }
 .app[data-screen="chat"] .auth      { display: none; }
 
