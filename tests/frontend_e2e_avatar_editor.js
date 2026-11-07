@@ -21,24 +21,27 @@ const PHOTO = path.join(__dirname, 'fixtures', 'photo.jpg');
   const tr = () => page.evaluate(() => document.querySelector('#editor-canvas').style.transform);
   const t0 = await tr();
   await page.screenshot({ path: 'tests/shots/avatar-editor.png' });
-  // масштаб ползунком
-  await page.locator('#avatar-zoom').fill('3');
-  const t1 = await tr();
-  ok(t1 !== t0 && /scale\(/.test(t1), 'ползунок меняет масштаб');
-  // перемещение пальцем
+  ok(await page.locator('#avatar-zoom').count() === 0, 'ползунка и подписи нет');
   const box = await page.locator('#editor-stage').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -600); await page.waitForTimeout(100);
+  const t1 = await tr();
+  ok(t1 !== t0 && /scale\(/.test(t1), 'колесо увеличивает масштаб');
+  // перемещение пальцем
   await page.evaluate(({ x, y }) => {
     const st = document.querySelector('#editor-stage'); const mk = (dx) => ({ pointerId: 7, bubbles: true, clientX: x + dx, clientY: y, pointerType: 'touch', isPrimary: true });
     st.dispatchEvent(new PointerEvent('pointerdown', mk(0))); st.dispatchEvent(new PointerEvent('pointermove', mk(-40))); st.dispatchEvent(new PointerEvent('pointerup', mk(-40)));
   }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
   const t2 = await tr();
   ok(t2 !== t1, 'перетаскивание двигает фото (' + t2 + ')');
-  // колесо — отдалить до минимума: масштаб не меньше «покрыть маску»
+  // отдаляем до предела: масштаб не меньше «покрыть маску»
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   for (let i = 0; i < 5; i++) await page.mouse.wheel(0, 2000);
   await page.waitForTimeout(100);
-  ok(Number(await page.inputValue('#avatar-zoom')) === 1, 'меньше «покрывает круг» отдалить нельзя');
-  await page.locator('#avatar-zoom').fill('2.5');
+  const minScale = parseFloat((await tr()).match(/scale\(([\d.]+)\)/)[1]);
+  await page.mouse.wheel(0, 2000); await page.waitForTimeout(100);
+  ok(parseFloat((await tr()).match(/scale\(([\d.]+)\)/)[1]) === minScale, 'меньше «покрывает круг» отдалить нельзя');
+  await page.mouse.wheel(0, -800); await page.waitForTimeout(100);
   await page.click('#editor-done');
   await page.waitForFunction(() => (window.__uploads || []).length === 1);
   const dims = await page.evaluate(async () => { const f = window.__uploads[0]; const bm = await createImageBitmap(f); return [bm.width, bm.height, f.type]; });
