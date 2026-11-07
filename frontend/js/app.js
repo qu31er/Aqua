@@ -21,10 +21,12 @@ import {
 } from './ui/chat-view.js';
 import { initComposer } from './ui/composer.js';
 import { initPicker } from './ui/picker.js';
+import { avatar } from './ui/avatar.js';
 import { initProfile } from './ui/profile.js';
 import { initSettings } from './ui/settings.js';
 import { initPeerProfile } from './ui/peer-profile.js';
-import { initAvatarViewer, initPullDown } from './ui/avatar-viewer.js';
+import { createAvatarViewer, initPullDown } from './ui/avatar-viewer.js';
+import { initContacts } from './ui/contacts.js';
 import { applyPrefs, applyCachedPrefs } from './theme.js';
 import { copyText } from './ui/clipboard.js';
 import { initSplash } from './ui/splash.js';
@@ -57,6 +59,10 @@ async function authenticate(request) {
 }
 
 /** Профиль обновлён (нами или пришёл по WS): правим пользователя в чатах и перерисовываем. */
+function renderNavAvatar() {
+  const u = state.user; if (!u) return;
+  $('#nav-avatar').replaceChildren(avatar(u.display_name || u.username, { user: u, small: true }));
+}
 function applyProfile(u) {
   if (u.id === state.user.id) state.user = { ...state.user, ...u };
   for (const chat of state.chats.values()) {
@@ -64,21 +70,24 @@ function applyProfile(u) {
     if (chat.type === 'direct' && chat.members.some((m) => m.id === u.id) && u.id !== state.user.id) chat.title = u.display_name || u.username;
   }
   profile.render();
+  renderNavAvatar();
   renderList();
   const chat = activeChat();
   if (chat) renderHeader(chat);
 }
-const profile = initProfile({ onChange: applyProfile, onAvatars: () => avatarViewer.open(state.user, true) });
-const avatarViewer = initAvatarViewer({ onOwnChange: (u) => applyProfile(u) });
+const profile = initProfile({ onChange: applyProfile, onAvatars: () => ownViewer.open(state.user, true) });
+const ownViewer = createAvatarViewer({ host: $('#profile-view'), onOwnChange: (u) => applyProfile(u) });
+const peerViewer = createAvatarViewer({ host: $('#peer-view'), onOwnChange: () => {} });
+const contacts = initContacts({ onOpen: (u) => { closeModal('modal-contacts'); openUser(u.username); } });
 // Потянуть вниз в профиле — открыть фото крупно (свой и чужой профиль)
-initPullDown($('#modal-settings .modal__body'), () => avatarViewer.open(state.user, true), { target: $('#profile-avatar') });
+initPullDown($('#modal-settings .modal__body'), () => ownViewer.open(state.user, true), { target: $('#profile-avatar') });
 
 applyCachedPrefs();
 const settings = initSettings({
   onUsername: (u) => applyProfile(u),
   onUnblock: () => {},
 });
-const peerProfile = initPeerProfile({ onChange: () => {}, onAvatars: (u) => avatarViewer.open(u, false) });
+const peerProfile = initPeerProfile({ onChange: () => {}, onAvatars: (u) => peerViewer.open(u, false) });
 initPullDown($('#modal-peer .modal__body'), () => peerProfile.openAvatars(), { target: $('#peer-big-avatar') });
 
 const authView = initAuthView({
@@ -89,6 +98,7 @@ const authView = initAuthView({
 async function enterApp(user) {
   state.user = user;
   applyPrefs(user.prefs);
+  renderNavAvatar();
   profile.render();
   setEmpty(true);
   showScreen('chat');
@@ -103,7 +113,7 @@ function logout(message) {
   resetState();
   connectedOnce = false; outageShown = false;
   searchQuery = ''; foundUsers = null; $('#search').value = '';
-  closeModal('modal-settings'); closeModal('modal-prefs'); closeModal('modal-peer');
+  closeModal('modal-settings'); closeModal('modal-prefs'); closeModal('modal-peer'); closeModal('modal-contacts');
   applyPrefs({}, { cache: false });
   stopMedia();
   app.dataset.chatOpen = 'false';
@@ -546,7 +556,10 @@ $('#messages').addEventListener('click', (e) => {
   const a = e.target.closest('.msg__author[data-user-id]');
   if (a && Number(a.dataset.userId) !== state.user.id) peerProfile.open(Number(a.dataset.userId));
 });
-$('#btn-menu').addEventListener('click', () => { profile.render(); openModal('modal-settings'); });
+$('#nav-profile').addEventListener('click', () => { ownViewer.close(); profile.render(); openModal('modal-settings'); });
+$('#nav-settings').addEventListener('click', () => { settings.render(); openModal('modal-prefs'); });
+$('#nav-contacts').addEventListener('click', () => { contacts.render(); openModal('modal-contacts'); });
+$('#nav-chats').addEventListener('click', () => { for (const m of ['modal-settings', 'modal-prefs', 'modal-contacts', 'modal-peer']) closeModal(m); $('#chat-list').scrollTo({ top: 0, behavior: 'smooth' }); });
 $('#btn-logout').addEventListener('click', () => logout());
 
 initModals();

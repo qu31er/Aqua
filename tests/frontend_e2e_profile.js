@@ -7,7 +7,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   const { page, be, errs } = t;
   await page.addInitScript(() => { localStorage.setItem('aqua.token', 'tok'); sessionStorage.setItem('aqua.splash.seen', '1'); });
   await page.goto('http://127.0.0.1:8765/index.html'); await page.waitForSelector('#chat-list .chat-item');
-  await page.click('#btn-menu'); await page.waitForSelector('#modal-settings.is-open');
+  await page.click('#nav-profile'); await page.waitForSelector('#modal-settings.is-open');
   ok(await page.textContent('#profile-login') === '@alice', 'логин показан с @');
   ok(await page.textContent('#profile-name') === 'alice', 'без ника показывается логин');
   ok(await page.locator('#profile-avatar .avatar').count() === 1, 'аватар показан (инициалы)');

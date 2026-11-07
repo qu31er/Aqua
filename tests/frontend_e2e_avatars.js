@@ -8,10 +8,10 @@ const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
   const { page, be, errs } = t;
   await page.addInitScript(() => { localStorage.setItem('aqua.token', 'tok'); sessionStorage.setItem('aqua.splash.seen', '1'); });
   await page.goto('http://127.0.0.1:8765/index.html'); await page.waitForSelector('#chat-list .chat-item');
-  await page.click('#btn-menu'); await page.waitForSelector('#modal-settings.is-open');
-  ok(await page.locator('#avatar-viewer').isHidden(), 'карусель закрыта');
+  await page.click('#nav-profile'); await page.waitForSelector('#modal-settings.is-open');
+  ok(await page.locator('#avatar-viewer').count() === 0, 'карусель закрыта');
   await page.click('#profile-avatar'); await page.waitForTimeout(200);
-  ok(await page.locator('#avatar-viewer').isHidden(), 'без фото карусель не открывается');
+  ok(await page.locator('#avatar-viewer').count() === 0, 'без фото карусель не открывается');
 
   // Добавляем два фото
   for (let i = 0; i < 2; i++) { await page.setInputFiles('#avatar-file', PNG); await page.waitForTimeout(250); }
@@ -19,13 +19,14 @@ const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
   ok(await page.locator('#profile-avatar img.avatar__img').count() === 1, 'текущая аватарка показана');
 
   // Открытие по нажатию
-  await page.click('#profile-avatar'); await page.waitForSelector('#avatar-viewer:not([hidden])');
-  ok(await page.locator('.avv__slide').count() === 2 && await page.locator('#avv-dots i').count() === 2, 'в карусели 2 фото и 2 индикатора');
-  ok(await page.locator('#avv-menu-wrap').isVisible(), 'у своего профиля есть меню ⋮');
+  await page.click('#profile-avatar'); await page.waitForSelector('#avatar-viewer');
+  ok(await page.locator('.avv__slide').count() === 2 && await page.locator('.avv__dots i').count() === 2, 'в карусели 2 фото и 2 индикатора');
+  ok(await page.locator('#avv-more').isVisible(), 'у своего профиля есть меню ⋮');
+  ok(await page.locator('#profile-view .profile__avatar').isHidden() && await page.locator('#profile-name').isVisible(), 'карусель заменила кружок, имя осталось');
   await page.screenshot({ path: 'tests/shots/avatar-viewer.png' });
   // Листание
-  await page.evaluate(() => { const t = document.querySelector('#avv-track'); t.scrollTo({ left: t.clientWidth, behavior: 'instant' }); });
-  await page.waitForFunction(() => document.querySelectorAll('#avv-dots i')[1].classList.contains('is-on'));
+  await page.evaluate(() => { const t = document.querySelector('.avv__track'); t.scrollTo({ left: t.clientWidth, behavior: 'instant' }); });
+  await page.waitForFunction(() => document.querySelectorAll('.avv__dots i')[1].classList.contains('is-on'));
   ok(true, 'индикатор переключился на второе фото');
   await page.click('#avv-more');
   ok(await page.locator('#avv-act-main').isVisible(), 'для не основного фото есть «Сделать основным»');
@@ -38,7 +39,7 @@ const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
   await page.waitForFunction(() => document.querySelectorAll('.avv__slide').length === 1);
   ok(be.gallery.length === 1, 'фото удалено на сервере, осталось одно');
   await page.click('#avv-more'); await page.click('#avv-act-delete');
-  await page.waitForSelector('#avatar-viewer', { state: 'hidden' });
+  await page.waitForSelector('#avatar-viewer', { state: 'detached' });
   ok(be.gallery.length === 0 && be.me.avatar === null, 'удалено последнее: карусель закрылась, аватарки нет');
 
   // Жест «потянуть вниз» в своём профиле
@@ -50,10 +51,10 @@ const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
     body.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true }));
   }, sel);
   await pull('#modal-settings .modal__body');
-  await page.waitForSelector('#avatar-viewer:not([hidden])');
+  await page.waitForSelector('#avatar-viewer');
   ok(true, 'потянув вниз в профиле, открылась карусель');
-  await page.keyboard.press('Escape'); await page.waitForSelector('#avatar-viewer', { state: 'hidden' });
-  ok(await page.locator('#modal-settings.is-open').count() === 1, 'Esc закрыл только карусель');
+  await page.click('#avv-close'); await page.waitForSelector('#avatar-viewer', { state: 'detached' });
+  ok(await page.locator('#modal-settings.is-open').count() === 1, 'карусель свёрнута, профиль открыт');
   await page.click('#modal-settings .btn-icon[data-close-modal]');
 
   // Чужой профиль: нет меню, жест работает
@@ -61,10 +62,10 @@ const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
   await page.waitForSelector('#messages .msg');
   await page.click('#chat-peer'); await page.waitForSelector('#modal-peer.is-open');
   await pull('#modal-peer .modal__body');
-  await page.waitForSelector('#avatar-viewer:not([hidden])');
+  await page.waitForSelector('#avatar-viewer');
   ok(await page.locator('.avv__slide').count() === 2, 'в чужом профиле открылась карусель из 2 фото');
-  ok(await page.locator('#avv-menu-wrap').isHidden(), 'у чужого профиля меню ⋮ нет');
-  await page.click('#avv-close'); ok(await page.locator('#avatar-viewer').isHidden(), 'крестик закрывает');
+  ok(await page.locator('#avv-more').count() === 0, 'у чужого профиля меню ⋮ нет');
+  await page.click('#avv-close'); ok(await page.locator('#avatar-viewer').count() === 0 && await page.locator('#peer-big-avatar').isVisible(), 'крестик сворачивает карусель обратно в аватарку');
   ok(errs.length === 0, 'нет ошибок консоли: ' + JSON.stringify(errs.slice(0, 3)));
   await b.close(); process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

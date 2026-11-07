@@ -471,9 +471,6 @@
 .profile__label { display: block; margin-bottom: .15rem; font-size: var(--fs-xs); color: var(--color-text-muted); }
 .profile__row .profile__bio, .profile__row .profile__login { margin: 0; max-width: none; }
 .profile__row .profile__login { color: var(--color-text); font-weight: 500; }
-@media (max-width: 47.99rem) {
-  #modal-settings .modal__dialog { height: 94vh; height: 94dvh; max-height: none; }
-}
 
 /* ---------- Настройки ---------- */
 .prefs__section { padding: .9rem 0; }
@@ -518,23 +515,52 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .profile__tile span { text-align: center; }
 
 
-/* ---------- Просмотр фото профиля ---------- */
+/* ---------- Просмотр фото профиля (в самом профиле) ---------- */
 .profile__avatar { cursor: zoom-in; transition: transform var(--dur-fast) var(--ease); }
 .profile-edit .profile__avatar { cursor: default; }
-.avv { position: fixed; inset: 0; z-index: 400; background: #000; display: flex; flex-direction: column; animation: avv-in var(--dur) var(--ease); }
-.avv[hidden] { display: none; }
-@keyframes avv-in { from { opacity: 0; transform: scale(.96); } }
-.avv__bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: calc(.5rem + var(--safe-top)) .5rem 1.5rem;
-  background: linear-gradient(#000a, transparent); }
-.avv__dots { display: flex; gap: .25rem; padding: 0 .5rem .5rem; }
+.avv { position: relative; align-self: stretch; margin: -.25rem -1.25rem .75rem; aspect-ratio: 1; max-height: 70vh; background: #000; overflow: hidden;
+  animation: avv-in var(--dur) var(--ease); }
+@keyframes avv-in { from { opacity: 0; transform: scale(.9); } }
+.avv::before { content: ""; position: absolute; inset: 0 0 auto; height: 6rem; z-index: 1; pointer-events: none; background: linear-gradient(#0009, transparent); }
+.avv__dots { position: absolute; top: .5rem; left: .75rem; right: .75rem; z-index: 2; display: flex; gap: .25rem; }
 .avv__dots[hidden] { display: none; }
-.avv__dots i { flex: 1; height: .2rem; border-radius: 1rem; background: rgba(255,255,255,.35); }
+.avv__dots i { flex: 1; height: .2rem; border-radius: 1rem; background: rgba(255,255,255,.4); }
 .avv__dots i.is-on { background: #fff; }
-.avv__top { display: flex; align-items: center; gap: .5rem; }
-.avv__who { flex: 1; min-width: 0; color: #fff; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avv__top { position: absolute; top: 1.1rem; left: .4rem; right: .4rem; z-index: 2; display: flex; justify-content: space-between; align-items: flex-start; }
 .avv__btn .icon { stroke: #fff; }
-.avv__track { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior: contain; }
+.avv__track { position: absolute; inset: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior: contain; }
 .avv__track::-webkit-scrollbar { display: none; }
-.avv__slide { flex: none; width: 100%; height: 100%; scroll-snap-align: center; display: grid; place-items: center; }
-.avv__slide img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; }
+.avv__slide { flex: none; width: 100%; height: 100%; scroll-snap-align: center; }
+.avv__slide img { width: 100%; height: 100%; object-fit: cover; user-select: none; }
+.avv .peer-menu-wrap { margin-left: 0; }
 @media (prefers-reduced-motion: reduce) { .avv { animation: none; } }
+
+/* ---------- Нижнее меню ---------- */
+.nav { position: absolute; left: .75rem; right: .75rem; bottom: calc(.6rem + var(--safe-bottom)); z-index: 3; display: flex; gap: .15rem; padding: .35rem;
+  border-radius: 2rem; background: color-mix(in srgb, var(--color-surface) 90%, transparent); border: 1px solid var(--color-border); box-shadow: var(--shadow-md);
+  -webkit-backdrop-filter: blur(.75rem); backdrop-filter: blur(.75rem); }
+.nav__item { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .45rem .2rem; border: 0; border-radius: 1.6rem;
+  background: none; color: var(--color-text-muted); font: inherit; font-size: .72rem; font-weight: 600; cursor: pointer; transition: background-color var(--dur-fast), color var(--dur-fast); }
+.nav__item .icon { width: 1.5rem; height: 1.5rem; }
+.nav__item.is-active { background: var(--aqua-100); color: var(--color-primary); }
+.nav__item:active { transform: scale(.97); }
+.nav__avatar { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; }
+.nav__avatar .avatar { width: 1.5rem; height: 1.5rem; font-size: .6rem; }
+.nav__avatar .avatar__dot { display: none; }
+.sidebar__list { padding-bottom: calc(5.5rem + var(--safe-bottom)) !important; }
+
+/* ---------- Контакты ---------- */
+.contacts { list-style: none; margin: 0; padding: 0; }
+.contacts__row { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .6rem .25rem; border: 0; border-radius: var(--radius-sm); background: none; font: inherit; text-align: left; color: var(--color-text); cursor: pointer; }
+.contacts__row:hover { background: var(--aqua-50); }
+.contacts__name { display: flex; flex-direction: column; min-width: 0; }
+.contacts__name small { color: var(--color-text-muted); }
+.contacts__empty { padding: 1.5rem .5rem; text-align: center; color: var(--color-text-muted); }
+
+/* ---------- Профиль, настройки, контакты — на всю страницу (телефон) ---------- */
+@media (max-width: 47.99rem) {
+  #modal-settings .modal__dialog, #modal-prefs .modal__dialog, #modal-peer .modal__dialog, #modal-contacts .modal__dialog {
+    height: 100vh; height: 100dvh; max-height: none; border-radius: 0; padding-bottom: 0; }
+  #modal-settings .modal__header, #modal-prefs .modal__header, #modal-peer .modal__header, #modal-contacts .modal__header { padding-top: calc(.75rem + var(--safe-top)); }
+  #modal-settings .modal__footer { padding-bottom: calc(1rem + var(--safe-bottom)); }
+}

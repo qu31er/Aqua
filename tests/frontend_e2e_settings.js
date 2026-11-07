@@ -10,7 +10,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   const rootVar = (n) => page.evaluate((k) => document.documentElement.style.getPropertyValue(k), n);
 
   // --- Настройки ---
-  await page.click('#btn-menu'); await page.waitForSelector('#modal-settings.is-open');
+  await page.click('#nav-profile'); await page.waitForSelector('#modal-settings.is-open');
   await page.click('#profile-settings-btn'); await page.waitForSelector('#modal-prefs.is-open');
   ok(await page.locator('.theme-sw').count() === 8, 'палитры: 7 готовых + свой цвет');
   await page.click('.theme-sw[data-palette="mint"]');
@@ -84,8 +84,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok((await page.textContent('#peer-act-block')) === 'Разблокировать', 'пункт меню: разблокировать');
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
   // Список заблокированных в настройках и разблокировка
-  await page.click('#btn-back').catch(() => {}); await page.waitForSelector('#btn-menu');
-  await page.click('#btn-menu'); await page.click('#profile-settings-btn');
+  await page.click('#btn-back').catch(() => {}); await page.waitForSelector('#nav-profile');
+  await page.click('#nav-profile'); await page.click('#profile-settings-btn');
   await page.waitForSelector('[data-unblock]');
   await page.click('[data-unblock]'); await page.waitForFunction(() => !document.querySelector('[data-unblock]'));
   ok(be.blocked.size === 0, 'разблокировка из настроек');

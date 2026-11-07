@@ -114,6 +114,7 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
     if (path === '/blocks' && req.method() === 'GET') return json(200, [...(be.blocked || new Set())].map((id) => ({ ...be.carl, id, display_name: be.carl.username })));
     const mb = path.match(/^\/blocks\/(\d+)$/);
     if (mb) { be.blocked = be.blocked || new Set(); req.method() === 'PUT' ? be.blocked.add(+mb[1]) : be.blocked.delete(+mb[1]); return json(200, { is_blocked: req.method() === 'PUT' }); }
+    if (path === '/contacts' && req.method() === 'GET') return json(200, [...(be.contacts || new Set())].map((id) => ({ ...be.carl, id, display_name: be.carl.username })));
     const mc = path.match(/^\/contacts\/(\d+)$/);
     if (mc) { be.contacts = be.contacts || new Set(); req.method() === 'PUT' ? be.contacts.add(+mc[1]) : be.contacts.delete(+mc[1]); return json(200, { is_contact: req.method() === 'PUT' }); }
     const mu = path.match(/^\/users\/(\d+)\/profile$/);

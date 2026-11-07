@@ -71,6 +71,13 @@
 <symbol id="i-more" viewBox="0 0 24 24">
     <circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/>
   </symbol>
+<symbol id="i-chats" viewBox="0 0 24 24">
+    <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h8A2.5 2.5 0 0 1 17 6.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3 2.5V14A2.5 2.5 0 0 1 4 11.5z"/>
+    <path d="M17 9h.5A2.5 2.5 0 0 1 20 11.5v5a2.5 2.5 0 0 1-2 2.45V21l-2.8-2H11a2.5 2.5 0 0 1-2-1"/>
+  </symbol>
+<symbol id="i-contacts" viewBox="0 0 24 24">
+    <circle cx="12" cy="9" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>
+  </symbol>
 <symbol id="i-menu" viewBox="0 0 24 24">
     <path d="M4 7h16M4 12h16M4 17h16"/>
   </symbol>
@@ -224,9 +231,6 @@
     <!-- Боковая панель: список чатов -->
     <aside class="sidebar" aria-label="Чаты">
       <header class="sidebar__header">
-        <button class="btn-icon icon-anim-spin" type="button" id="btn-menu" aria-label="Меню">
-          <svg class="icon"><use href="#i-menu"/></svg>
-        </button>
         <div class="sidebar__brand">
           <img src="assets/icon-64.png" width="32" height="32" alt="">
           <span>Aqua</span>
@@ -243,6 +247,14 @@
 
       <!-- Список строится JS из GET /api/chats -->
       <ul class="sidebar__list scroll" id="chat-list"></ul>
+
+      <!-- Нижнее меню -->
+      <nav class="nav" id="nav" aria-label="Разделы">
+        <button class="nav__item is-active" type="button" id="nav-chats" aria-current="page"><svg class="icon"><use href="#i-chats"/></svg><span>Чаты</span></button>
+        <button class="nav__item" type="button" id="nav-contacts"><svg class="icon"><use href="#i-contacts"/></svg><span>Контакты</span></button>
+        <button class="nav__item" type="button" id="nav-settings"><svg class="icon"><use href="#i-settings"/></svg><span>Настройки</span></button>
+        <button class="nav__item" type="button" id="nav-profile"><span class="nav__avatar" id="nav-avatar"></span><span>Профиль</span></button>
+      </nav>
     </aside>
 
     <!-- Окно переписки -->
@@ -421,20 +433,16 @@
   </div>
 </div>
 
-<!-- Просмотр аватарок (карусель) -->
-<div class="avv" id="avatar-viewer" role="dialog" aria-modal="true" aria-label="Фото профиля" hidden>
-  <div class="avv__bar">
-    <div class="avv__dots" id="avv-dots"></div>
-    <div class="avv__top">
-      <button class="btn-icon avv__btn" type="button" id="avv-close" aria-label="Закрыть"><svg class="icon icon--white"><use href="#i-close"/></svg></button>
-      <div class="avv__who" id="avv-who"></div>
-      <div class="peer-menu-wrap" id="avv-menu-wrap" hidden>
-        <button class="btn-icon avv__btn" type="button" id="avv-more" aria-label="Ещё" aria-haspopup="menu" aria-expanded="false"><svg class="icon icon--white"><use href="#i-more"/></svg></button>
-        <div class="peer-menu" id="avv-menu" role="menu" hidden></div>
-      </div>
-    </div>
+<!-- Контакты -->
+<div class="modal" id="modal-contacts" role="dialog" aria-modal="true" aria-labelledby="contacts-title">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__dialog">
+    <header class="modal__header">
+      <h2 class="modal__title" id="contacts-title">Контакты</h2>
+      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="modal__body scroll"><ul class="contacts" id="contacts-list"></ul></div>
   </div>
-  <div class="avv__track" id="avv-track"></div>
 </div>
 
 <!-- Файловый менеджер -->

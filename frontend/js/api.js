@@ -76,6 +76,7 @@ export const api = {
   updatePrefs: (body) => request('/profile/prefs', { method: 'PUT', json: body }),
   changeUsername: (username, password) => request('/profile/username', { method: 'PUT', json: { username, password } }),
   changePassword: (current_password, new_password) => request('/profile/password', { method: 'PUT', json: { current_password, new_password } }),
+  listContacts: () => request('/contacts'),
   listBlocks: () => request('/blocks'),
   setBlocked: (id, on) => request(`/blocks/${id}`, { method: on ? 'PUT' : 'DELETE' }),
   setContact: (id, on) => request(`/contacts/${id}`, { method: on ? 'PUT' : 'DELETE' }),
