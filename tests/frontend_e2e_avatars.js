@@ -2,6 +2,13 @@
 const { chromium } = require('playwright'); const { setup } = require('./mock.js'); const path = require('path');
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
+const addPhoto = async (page) => {
+  await page.setInputFiles('#avatar-file', PNG);
+  await page.waitForSelector('#modal-editor.is-open'); await page.waitForTimeout(300);
+  await page.click('#editor-done');
+  await page.waitForSelector('#modal-editor.is-open', { state: 'detached' }).catch(() => {});
+  await page.waitForTimeout(300);
+};
 (async () => {
   const b = await chromium.launch();
   const t = await setup(b, { viewport: { width: 420, height: 800 }, hasTouch: true });
@@ -14,7 +21,7 @@ const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
   ok(await page.locator('#avatar-viewer').count() === 0, 'без фото карусель не открывается');
 
   // Добавляем два фото
-  for (let i = 0; i < 2; i++) { await page.setInputFiles('#avatar-file', PNG); await page.waitForTimeout(250); }
+  for (let i = 0; i < 2; i++) await addPhoto(page);
   ok(be.gallery.length === 2 && be.profilePatches.filter((p) => p.avatar_id).length === 2, 'два фото загружены и сделаны аватаркой');
   ok(await page.locator('#profile-avatar img.avatar__img').count() === 1, 'текущая аватарка показана');
 
@@ -43,7 +50,7 @@ const PNG = path.join(__dirname, 'fixtures', 'photo.jpg');
   ok(be.gallery.length === 0 && be.me.avatar === null, 'удалено последнее: карусель закрылась, аватарки нет');
 
   // Жест «потянуть вниз» в своём профиле
-  await page.setInputFiles('#avatar-file', PNG); await page.waitForTimeout(250);
+  await addPhoto(page);
   const pull = (sel) => page.evaluate((s) => {
     const body = document.querySelector(s); const mk = (y) => new Touch({ identifier: 1, target: body, clientX: 200, clientY: y });
     body.dispatchEvent(new TouchEvent('touchstart', { touches: [mk(300)], bubbles: true }));

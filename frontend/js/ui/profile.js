@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { avatar } from './avatar.js';
 import { toast } from './toast.js';
+import { openEditor } from '../editor/editor-modal.js';
 
 export const displayName = (u) => u.display_name || u.username;
 
@@ -29,8 +30,11 @@ export function initProfile({ onChange, onAvatars }) {
   async function uploadAvatar(file) {
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast('Выберите картинку.'); return; }
+    // Подтверждение через круглую маску: можно двигать, масштабировать и править фото тем же редактором
+    const edited = await openEditor(file, { avatar: true });
+    if (!edited) return;
     try {
-      const media = await api.uploadMedia(file);
+      const media = await api.uploadMedia(edited.file);
       onChange(await api.updateProfile({ avatar_id: media.id }));
       toast('Фото профиля обновлено');
     } catch (e) { toast(e.message || 'Не удалось загрузить фото.'); }

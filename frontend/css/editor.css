@@ -93,3 +93,22 @@
 .editor__caption { flex: 1; min-width: 0; padding: .5rem .875rem; border-radius: 999px; background: var(--aqua-100); }
 .editor__busy { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: .75rem;
   background: rgba(255, 255, 255, .88); -webkit-backdrop-filter: blur(.25rem); backdrop-filter: blur(.25rem); }
+
+/* ---------- Режим «Фото профиля»: круглая маска, фото двигается и масштабируется ---------- */
+.avmask { display: none; position: absolute; left: 50%; top: 50%; z-index: 2; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%); box-shadow: 0 0 0 200vmax rgba(5, 25, 40, .62), inset 0 0 0 .15rem rgba(255, 255, 255, .85); }
+.modal--editor[data-avatar="true"] .avmask { display: block; }
+.modal--editor[data-avatar="true"] .editor__stage { cursor: grab; }
+.modal--editor[data-avatar="true"] .editor__stage canvas { max-width: none; max-height: none; transform-origin: center; will-change: transform; }
+.modal--editor[data-avatar="true"] #editor-caption,
+.modal--editor[data-avatar="true"] .icon-tile[data-tool="crop"] { display: none; }
+.modal--editor[data-avatar="true"] .editor__footer { justify-content: flex-end; }
+.editor__zoom { display: none; flex-direction: column; gap: .25rem; padding: .5rem 1rem 0; }
+.modal--editor[data-avatar="true"] .editor__zoom { display: flex; }
+.modal--editor[data-mode="video"] .editor__zoom { display: none !important; }
+.editor__zoom input[type=range] { width: 100%; accent-color: var(--aqua-teal-600); }
+.editor__zoom input[type=range] { -webkit-appearance: none; appearance: none; height: 1.5rem; padding: 0; border: 0; background: transparent; }
+.editor__zoom input[type=range]::-webkit-slider-runnable-track { height: .35rem; border-radius: 1rem; background: var(--aqua-200); }
+.editor__zoom input[type=range]::-moz-range-track { height: .35rem; border-radius: 1rem; background: var(--aqua-200); }
+.editor__zoom input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 1.3rem; height: 1.3rem; margin-top: -.475rem; border-radius: 50%; border: 0; background: var(--aqua-teal-600); box-shadow: var(--shadow-sm); }
+.editor__zoom input[type=range]::-moz-range-thumb { width: 1.3rem; height: 1.3rem; border-radius: 50%; border: 0; background: var(--aqua-teal-600); }

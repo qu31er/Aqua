@@ -21,7 +21,7 @@ function wire() {
   wired = true;
   photo = createPhotoEditor({
     stage: $('#editor-stage'), canvas: $('#editor-canvas'), cropBox: $('#crop-box'),
-    textInput: $('#editor-text-input'), tools: $('#photo-tools'),
+    textInput: $('#editor-text-input'), tools: $('#photo-tools'), mask: $('#avatar-mask'), zoomInput: $('#avatar-zoom'),
   });
   video = createVideoEditor({ video: $('#editor-video'), playBtn: $('#editor-play'), tools: $('#video-tools') });
   photo.onUndoChange((has) => { $('#editor-undo').disabled = !has; });
@@ -55,6 +55,7 @@ function wire() {
   // Любое закрытие окна (крестик, Esc, подложка) без «Готово» = отмена
   onModalClose('modal-editor', () => {
     abort?.abort();
+    photo.setAvatarMode(false); modal().dataset.avatar = 'false';
     photo.destroy(); video.destroy();
     if (resolveCurrent) { resolveCurrent(null); resolveCurrent = null; }
   });
@@ -67,12 +68,15 @@ function finish(result) {
   resolve?.(result);
 }
 
-export async function openEditor(file) {
+/** options.avatar — режим «Фото профиля»: круглая маска, перемещение и масштаб; результат — квадратный JPEG. */
+export async function openEditor(file, { avatar = false } = {}) {
   if (!wired) wire();
   mode = file.type.startsWith('video/') ? 'video' : 'photo';
+  avatar = avatar && mode === 'photo';
   modal().dataset.mode = mode;
+  modal().dataset.avatar = String(avatar);
   $('#editor-caption').value = '';
-  $('#editor-title').textContent = mode === 'video' ? 'Видео' : 'Фото';
+  $('#editor-title').textContent = avatar ? 'Фото профиля' : mode === 'video' ? 'Видео' : 'Фото';
   $('#editor-undo').disabled = true;
   busy(false);
 
@@ -83,6 +87,7 @@ export async function openEditor(file) {
     requestAnimationFrame(() => requestAnimationFrame(async () => {
       try {
         await (mode === 'video' ? video.load(file) : photo.load(file));
+        if (avatar) photo.setAvatarMode(true);
       } catch (e) {
         toast(e.message || 'Не удалось открыть файл.');
         closeModal('modal-editor');

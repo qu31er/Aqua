@@ -20,7 +20,7 @@ const TOOLS = [
 ];
 
 /** @param {{stage:HTMLElement, canvas:HTMLCanvasElement, cropBox:HTMLElement, textInput:HTMLInputElement, tools:HTMLElement}} ui */
-export function createPhotoEditor({ stage, canvas, cropBox, textInput, tools }) {
+export function createPhotoEditor({ stage, canvas, cropBox, textInput, tools, mask = null, zoomInput = null }) {
   const ctx = canvas.getContext('2d');
   let work = null;
   let undo = [];
@@ -31,6 +31,59 @@ export function createPhotoEditor({ stage, canvas, cropBox, textInput, tools }) 
   let aspect = null;
   let crop = null;                  // {x, y, w, h} в координатах отображаемого canvas
   let onUndoChange = () => {};
+
+  /* ---------- Режим аватарки: круглая маска, фото двигается и масштабируется ---------- */
+  let avatarMode = false;
+  const av = { z: 1, tx: 0, ty: 0 };            // z — масштаб относительно «покрыть маску», tx/ty — сдвиг в px экрана
+  const maskSize = () => Math.round(Math.min(stage.clientWidth, stage.clientHeight) * 0.86);
+  const zMin = () => maskSize() / Math.max(1, Math.min(canvas.width, canvas.height));   // минимум: фото полностью закрывает маску
+  function layoutAvatar(reset = false) {
+    if (!avatarMode || !work) return;
+    const S = maskSize();
+    Object.assign(mask.style, { width: `${S}px`, height: `${S}px` });
+    const zm = zMin();
+    if (reset) { av.z = zm; av.tx = av.ty = 0; }
+    av.z = Math.min(Math.max(av.z, zm), zm * 6);
+    const maxX = Math.max(0, (canvas.width * av.z - S) / 2), maxY = Math.max(0, (canvas.height * av.z - S) / 2);
+    av.tx = Math.min(Math.max(av.tx, -maxX), maxX); av.ty = Math.min(Math.max(av.ty, -maxY), maxY);
+    canvas.style.transform = `translate(${av.tx}px, ${av.ty}px) scale(${av.z})`;
+    if (zoomInput) zoomInput.value = String(av.z / zm);
+  }
+  const pts = new Map();
+  let g = null;                                    // состояние жеста
+  const gestureActive = () => avatarMode && tool !== 'brush' && tool !== 'text';
+  stage.addEventListener('pointerdown', (e) => {
+    if (!gestureActive() || e.target === zoomInput) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { stage.setPointerCapture(e.pointerId); } catch { /* синтетические события без активного указателя */ }
+    g = { tx: av.tx, ty: av.ty, z: av.z, pts: [...pts.values()].map((p) => ({ ...p })) };
+    e.preventDefault();
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!g || !pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const cur = [...pts.values()];
+    if (cur.length >= 2 && g.pts.length >= 2) {
+      const d0 = Math.hypot(g.pts[0].x - g.pts[1].x, g.pts[0].y - g.pts[1].y) || 1;
+      const d1 = Math.hypot(cur[0].x - cur[1].x, cur[0].y - cur[1].y);
+      av.z = g.z * (d1 / d0);
+      av.tx = g.tx + ((cur[0].x + cur[1].x) - (g.pts[0].x + g.pts[1].x)) / 2;
+      av.ty = g.ty + ((cur[0].y + cur[1].y) - (g.pts[0].y + g.pts[1].y)) / 2;
+    } else if (cur.length === 1) {
+      av.tx = g.tx + cur[0].x - g.pts[0].x; av.ty = g.ty + cur[0].y - g.pts[0].y;
+    }
+    layoutAvatar();
+  });
+  const endGesture = (e) => {
+    pts.delete(e.pointerId);
+    g = pts.size ? { tx: av.tx, ty: av.ty, z: av.z, pts: [...pts.values()].map((p) => ({ ...p })) } : null;
+  };
+  stage.addEventListener('pointerup', endGesture); stage.addEventListener('pointercancel', endGesture);
+  stage.addEventListener('wheel', (e) => {
+    if (!gestureActive()) return;
+    e.preventDefault(); av.z *= Math.exp(-e.deltaY * 0.0015); layoutAvatar();
+  }, { passive: false });
+  zoomInput?.addEventListener('input', () => { av.z = zMin() * Number(zoomInput.value); layoutAvatar(); });
 
   /* ---------- Отрисовка ---------- */
   function render() {
@@ -43,6 +96,7 @@ export function createPhotoEditor({ stage, canvas, cropBox, textInput, tools }) 
     ctx.drawImage(work, 0, 0, canvas.width, canvas.height);
     if (filter !== 'none') applyFilter(canvas, filter);
     if (tool === 'crop') layoutCrop();
+    layoutAvatar();
   }
 
   const toWork = (clientX, clientY) => {
@@ -227,7 +281,7 @@ export function createPhotoEditor({ stage, canvas, cropBox, textInput, tools }) 
       const b = el('button', {
         class: 'icon-tile', type: 'button', dataset: { tool: t.id },
         onclick: () => {
-          if (t.id === 'rotate') { snapshot(); work = rotate90(work); crop = null; render(); return; }
+          if (t.id === 'rotate') { snapshot(); work = rotate90(work); crop = null; render(); layoutAvatar(true); return; }
           setTool(t.id);
         },
       }, icon(t.icon, 'icon--lg'), t.label);
@@ -247,6 +301,7 @@ export function createPhotoEditor({ stage, canvas, cropBox, textInput, tools }) 
       onUndoChange(false);
       setTool(null);
       render();
+      layoutAvatar(true);
     },
     undo() {
       if (!undo.length) return;
@@ -256,7 +311,26 @@ export function createPhotoEditor({ stage, canvas, cropBox, textInput, tools }) 
     },
     onUndoChange(fn) { onUndoChange = fn; },
     relayout: () => { crop = null; render(); },
-    async export() { commitText(); return exportJpeg(work, filter); },
+    async export() {
+      commitText();
+      if (!avatarMode) return exportJpeg(work, filter);
+      // Берём из рабочего изображения ровно то, что сейчас видно в круге
+      const R = canvas.getBoundingClientRect(), M = mask.getBoundingClientRect();
+      const f = R.width / work.width;
+      const sw = M.width / f, sx = (M.left - R.left) / f, sy = (M.top - R.top) / f;
+      const size = Math.max(256, Math.min(1024, Math.round(sw)));
+      const sq = newCanvas(size, size), c = sq.getContext('2d');
+      c.fillStyle = '#fff'; c.fillRect(0, 0, size, size);
+      c.imageSmoothingQuality = 'high';
+      c.drawImage(work, sx, sy, sw, sw, 0, 0, size, size);
+      return exportJpeg(sq, filter);
+    },
+    /** Включает/выключает режим аватарки (круглая маска + перемещение и масштаб). */
+    setAvatarMode(on) {
+      avatarMode = on;
+      canvas.style.transform = '';
+      if (on) { setTool(null); render(); layoutAvatar(true); }
+    },
     get size() { return work ? { w: work.width, h: work.height } : null; },
     destroy() { work = null; undo = []; textInput.hidden = true; },
   };
