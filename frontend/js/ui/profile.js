@@ -16,8 +16,7 @@ export function initProfile({ onChange }) {
 
   const setEditing = (on) => {
     $('#profile-view').hidden = on; $('#profile-edit').hidden = !on;
-    $('#profile-edit-btn').hidden = on; $('#profile-save').hidden = !on;
-    $('#profile-cancel').hidden = !on; $('#btn-logout').hidden = on;
+    $('#profile-footer').hidden = !on;
     $('#modal-settings-title').textContent = on ? 'Изменить профиль' : 'Профиль';
   };
 
@@ -66,14 +65,16 @@ export function initProfile({ onChange }) {
   });
   $('#profile-nick').addEventListener('input', () => { if (!draft?.avatar) renderDraftAvatar(); });
 
-  $('#profile-edit-btn').addEventListener('click', () => {
+  const startEdit = () => {
     const u = state.user;
     draft = { avatar: u.avatar ?? null, file: null };
     $('#profile-nick').value = displayName(u);
     $('#profile-login-ro').value = `@${u.username}`;
     $('#profile-bio-input').value = u.bio || '';
     setEditing(true); renderDraftAvatar();
-  });
+  };
+  $('#profile-edit-btn').addEventListener('click', startEdit);
+  $('#profile-photo-btn').addEventListener('click', () => { startEdit(); $('#avatar-file').click(); });
   $('#profile-cancel').addEventListener('click', () => { draft = null; setEditing(false); });
 
   $('#profile-save').addEventListener('click', async () => {

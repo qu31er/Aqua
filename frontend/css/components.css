@@ -457,3 +457,27 @@
 .avatar-picker__item:hover { transform: scale(1.08); }
 .avatar-picker__item[aria-checked="true"] { border-color: var(--aqua-teal); box-shadow: 0 0 0 .15rem #fff inset; }
 .avatar-picker__actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+
+/* ---------- Профиль в стиле Telegram ---------- */
+.profile { gap: .25rem; padding: 1rem 0 .5rem; }
+.profile .avatar--xl { width: 9rem; height: 9rem; font-size: 3rem; }
+.profile__avatar { margin-bottom: .75rem; }
+.profile__name { font-size: 1.6rem; font-weight: 700; }
+.profile__status { margin: 0; color: var(--color-text-muted); font-size: var(--fs-sm); }
+.profile__tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; width: 100%; margin: 1.1rem 0 1rem; }
+.profile__tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; padding: .8rem .3rem;
+  border: 0; border-radius: var(--radius-md); background: var(--aqua-100); color: var(--color-primary); font: inherit; font-size: var(--fs-xs); font-weight: 600;
+  cursor: pointer; transition: transform var(--dur-fast) var(--ease), background-color var(--dur-fast); }
+.profile__tile:hover { background: var(--aqua-200); }
+.profile__tile:active { transform: scale(.96); }
+.profile__tile .icon { width: 1.5rem; height: 1.5rem; }
+.profile__tile--danger { color: var(--color-danger); }
+.profile__info { width: 100%; text-align: left; background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.profile__row { padding: .7rem 1rem; }
+.profile__row + .profile__row { border-top: 1px solid var(--color-border); }
+.profile__label { display: block; margin-bottom: .15rem; font-size: var(--fs-xs); color: var(--color-text-muted); }
+.profile__row .profile__bio, .profile__row .profile__login { margin: 0; max-width: none; }
+.profile__row .profile__login { color: var(--color-text); font-weight: 500; }
+@media (max-width: 47.99rem) {
+  #modal-settings .modal__dialog { height: 94vh; height: 94dvh; max-height: none; }
+}
