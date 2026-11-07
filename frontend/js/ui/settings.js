@@ -1,5 +1,5 @@
-/* Окно «Настройки»: оформление, обои, быстрая реакция, приватность, заблокированные, логин и пароль. */
-import { $, el } from '../dom.js';
+/* Окно «Настройки»: список разделов → «Настройки чатов» (вид сообщений, тема, обои, реакция), «Конфиденциальность», «Аккаунт». */
+import { $, el, icon } from '../dom.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { REACTIONS } from '../config.js';
@@ -124,12 +124,58 @@ export function initSettings({ onUsername, onUnblock }) {
       await api.changePassword(v.current, v.next); toast('Пароль изменён');
     }));
 
-  function render() {
-    // Раскрытые формы и прокрутку сохраняем при перерисовке после выбора
-    const top = $('#prefs-body').scrollTop;
-    body.replaceChildren(themeSection(), wallpaperSection(), reactionSection(), privacySection(), accountSection());
-    $('#prefs-body').scrollTop = top;
-    loadBlocked();
+  /* ---- Вид сообщений ---- */
+  function range(id, label, min, max, value, unit, onLive, onSave) {
+    const out = el('output', { text: `${value}${unit}` });
+    const input = el('input', { type: 'range', id, min, max, step: 1, value,
+      oninput: () => { out.textContent = `${input.value}${unit}`; onLive(+input.value); },
+      onchange: () => onSave(+input.value) });
+    return el('div', { class: 'range' }, el('label', { class: 'range__head', for: id }, el('span', { text: label }), out), input);
   }
-  return { render };
+  function previewSection() {
+    const bubble = (cls, text, time) => el('div', { class: `msg ${cls}` },
+      el('div', { class: 'msg__bubble' }, el('div', { class: 'msg__text', text }), el('span', { class: 'msg__meta', text: time })));
+    return el('div', { class: 'prefs__preview', id: 'prefs-preview', 'aria-hidden': 'true' },
+      bubble('msg--in', 'Привет! Как дела?', '12:30'), bubble('msg--out', 'Отлично, смотри на новые пузыри', '12:31'));
+  }
+  function bubblesSection() {
+    const live = (patch) => applyPrefs({ ...prefs(), ...patch }, { cache: false });
+    return section('Сообщения',
+      range('bubble-radius', 'Скругление пузырей', 0, 28, prefs().bubble_radius ?? 18, ' px',
+        (v) => live({ bubble_radius: v }), (v) => savePrefs({ bubble_radius: v })),
+      range('text-size', 'Размер текста', 85, 130, prefs().text_size ?? 100, ' %',
+        (v) => live({ text_size: v }), (v) => savePrefs({ text_size: v })),
+      el('button', { type: 'button', class: 'btn btn--ghost', id: 'prefs-reset-view', text: 'Сбросить вид',
+        onclick: () => savePrefs({ bubble_radius: null, text_size: null }) }));
+  }
+
+  /* ---- Страницы ---- */
+  const PAGES = {
+    menu: { title: 'Настройки', build: () => [
+      navRow('chats', 'Настройки чатов', 'Вид сообщений, тема, обои, быстрая реакция'),
+      navRow('privacy', 'Конфиденциальность', 'Кто может писать, заблокированные'),
+      navRow('account', 'Аккаунт', 'Логин и пароль')] },
+    chats: { title: 'Настройки чатов', build: () => [previewSection(), bubblesSection(), themeSection(), wallpaperSection(), reactionSection()] },
+    privacy: { title: 'Конфиденциальность', build: () => [privacySection()], after: loadBlocked },
+    account: { title: 'Аккаунт', build: () => [accountSection()] },
+  };
+  let page = 'menu';
+  function navRow(id, title, hint) {
+    return el('button', { type: 'button', class: 'prefs__nav', dataset: { page: id }, onclick: () => render(id) },
+      el('span', {}, el('b', { text: title }), el('small', { text: hint })), icon('i-chevron'));
+  }
+  $('#prefs-back').addEventListener('click', () => render('menu'));
+
+  function render(next = page) {
+    const top = next === page ? body.scrollTop : 0;
+    page = next;
+    const def = PAGES[page];
+    $('#prefs-title').textContent = def.title;
+    $('#prefs-back').hidden = page === 'menu';
+    body.replaceChildren(...def.build());
+    body.scrollTop = top;
+    def.after?.();
+  }
+  /** Открытие окна всегда начинается с главного списка. */
+  return { render: () => render('menu') };
 }

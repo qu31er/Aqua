@@ -170,14 +170,15 @@
 .msg__bubble {
   position: relative;
   padding: .5rem .75rem .375rem;
-  border-radius: 1.125rem;
+  border-radius: var(--bubble-radius, 1.125rem);
+  font-size: calc(var(--fs-md) * var(--msg-scale, 1));
   box-shadow: var(--shadow-sm);
   overflow-wrap: anywhere;
   -webkit-user-select: text; user-select: text;
   -webkit-touch-callout: none;                    /* iOS: свой длинный тап вместо системного меню */
 }
-.msg--in  .msg__bubble { background: var(--bubble-in-bg);  color: var(--bubble-in-text);  border-bottom-left-radius: .3rem; }
-.msg--out .msg__bubble { background: var(--bubble-out-bg); color: var(--bubble-out-text); border-bottom-right-radius: .3rem; }
+.msg--in  .msg__bubble { background: var(--bubble-in-bg);  color: var(--bubble-in-text);  border-bottom-left-radius: min(.3rem, var(--bubble-radius, .3rem)); }
+.msg--out .msg__bubble { background: var(--bubble-out-bg); color: var(--bubble-out-text); border-bottom-right-radius: min(.3rem, var(--bubble-radius, .3rem)); }
 .msg__text { white-space: pre-wrap; }
 .msg__meta { display: block; margin-top: .125rem; text-align: right; font-size: .6875rem; opacity: .7; }
 .msg__author { font-size: var(--fs-xs); font-weight: 700; color: var(--aqua-teal-600); }
@@ -197,7 +198,7 @@
 .typing {
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: .25rem;
-  padding: .625rem .875rem; border-radius: 1.125rem; border-bottom-left-radius: .3rem;
+  padding: .625rem .875rem; border-radius: var(--bubble-radius, 1.125rem); border-bottom-left-radius: min(.3rem, var(--bubble-radius, .3rem));
   background: var(--bubble-in-bg); box-shadow: var(--shadow-sm);
 }
 .typing__dot { width: .4rem; height: .4rem; border-radius: 50%; background: var(--aqua-teal); }
@@ -564,3 +565,22 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
   #modal-settings .modal__header, #modal-prefs .modal__header, #modal-peer .modal__header, #modal-contacts .modal__header { padding-top: calc(.75rem + var(--safe-top)); }
   #modal-settings .modal__footer { padding-bottom: calc(1rem + var(--safe-bottom)); }
 }
+
+/* ---------- Настройки: список разделов, предпросмотр, ползунки ---------- */
+.prefs__nav { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; padding: 1rem .25rem; border: 0; background: none;
+  font: inherit; font-size: var(--fs-md); color: var(--color-text); text-align: left; cursor: pointer; border-bottom: 1px solid var(--color-border); }
+.prefs__nav:hover { background: var(--aqua-50); }
+.prefs__nav small { display: block; margin-top: .15rem; color: var(--color-text-muted); font-size: var(--fs-sm); }
+.prefs__nav .icon { flex: none; color: var(--color-text-muted); }
+.prefs__preview { display: flex; flex-direction: column; gap: .4rem; padding: 1rem .75rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);
+  background: var(--chat-wallpaper, var(--color-bg)); background-size: cover; background-position: center; }
+.prefs__preview .msg { max-width: 85%; }
+.range { display: grid; gap: .25rem; margin: .6rem 0; }
+.range__head { display: flex; justify-content: space-between; font-size: var(--fs-sm); }
+.range__head output { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.range input[type=range] { width: 100%; accent-color: var(--aqua-teal-600); }
+.range input[type=range] { -webkit-appearance: none; appearance: none; height: 1.5rem; padding: 0; border: 0; background: transparent; }
+.range input[type=range]::-webkit-slider-runnable-track { height: .35rem; border-radius: 1rem; background: var(--aqua-200); }
+.range input[type=range]::-moz-range-track { height: .35rem; border-radius: 1rem; background: var(--aqua-200); }
+.range input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 1.3rem; height: 1.3rem; margin-top: -.475rem; border-radius: 50%; border: 0; background: var(--aqua-teal-600); box-shadow: var(--shadow-sm); }
+.range input[type=range]::-moz-range-thumb { width: 1.3rem; height: 1.3rem; border-radius: 50%; border: 0; background: var(--aqua-teal-600); }

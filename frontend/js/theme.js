@@ -49,7 +49,7 @@ function derive(accent) {
   };
 }
 
-const MANAGED = new Set([...Object.keys(DARK), ...Object.keys(derive('#000000'))]);
+const MANAGED = new Set(['--bubble-radius', '--msg-scale', ...Object.keys(DARK), ...Object.keys(derive('#000000'))]);
 
 export function paletteVars(prefs) {
   const id = prefs?.palette;
@@ -73,11 +73,13 @@ export function applyPrefs(prefs, { cache = true } = {}) {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   root.style.colorScheme = prefs?.palette === 'night' ? 'dark' : 'light';
   root.dataset.theme = prefs?.palette === 'night' ? 'dark' : 'light';
+  if (Number.isInteger(prefs?.bubble_radius)) root.style.setProperty('--bubble-radius', `${prefs.bubble_radius}px`);
+  if (Number.isInteger(prefs?.text_size)) root.style.setProperty('--msg-scale', String(prefs.text_size / 100));
   const css = wallpaperCss(prefs?.wallpaper);
   if (css) root.style.setProperty('--chat-wallpaper', css); else root.style.removeProperty('--chat-wallpaper');
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', vars['--aqua-sky'] ?? '#A2D1FF');
   if (cache) {
-    try { storage.set(CACHE_KEY, JSON.stringify({ palette: prefs?.palette, accent: prefs?.accent, wallpaper: prefs?.wallpaper?.type === 'preset' ? prefs.wallpaper : null })); } catch { /* не критично */ }
+    try { storage.set(CACHE_KEY, JSON.stringify({ palette: prefs?.palette, accent: prefs?.accent, bubble_radius: prefs?.bubble_radius, text_size: prefs?.text_size, wallpaper: prefs?.wallpaper?.type === 'preset' ? prefs.wallpaper : null })); } catch { /* не критично */ }
   }
 }
 

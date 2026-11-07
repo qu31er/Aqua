@@ -182,6 +182,8 @@ class PrefsUpdate(BaseModel):
     accent: str | None = None               # #rrggbb для своей палитры
     wallpaper: dict | None = None           # {"type": "none"} | {"type":"preset","id":..} | {"type":"media","media_id":..}
     quick_reaction: str | None = None
+    bubble_radius: int | None = None        # скругление пузырей сообщений, px (0–28)
+    text_size: int | None = None            # размер текста сообщений, % (85–130)
 
 
 @router.put("/profile/prefs")
@@ -202,6 +204,14 @@ def update_prefs(data: PrefsUpdate, user: sqlite3.Row = Depends(get_current_user
         if data.quick_reaction not in config.ALLOWED_REACTIONS:
             raise HTTPException(422, "Эта реакция недоступна.")
         prefs["quick_reaction"] = data.quick_reaction
+    if "bubble_radius" in sent:
+        if data.bubble_radius is not None and not 0 <= data.bubble_radius <= 28:
+            raise HTTPException(422, "Скругление должно быть от 0 до 28.")
+        prefs["bubble_radius"] = data.bubble_radius
+    if "text_size" in sent:
+        if data.text_size is not None and not 85 <= data.text_size <= 130:
+            raise HTTPException(422, "Размер текста должен быть от 85 до 130 %.")
+        prefs["text_size"] = data.text_size
     if "wallpaper" in sent:
         w = data.wallpaper or {"type": "none"}
         kind = w.get("type")

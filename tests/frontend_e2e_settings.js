@@ -10,8 +10,11 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   const rootVar = (n) => page.evaluate((k) => document.documentElement.style.getPropertyValue(k), n);
 
   // --- Настройки ---
-  await page.click('#nav-profile'); await page.waitForSelector('#modal-settings.is-open');
-  await page.click('#profile-settings-btn'); await page.waitForSelector('#modal-prefs.is-open');
+
+  await page.click('#nav-settings'); await page.waitForSelector('#modal-prefs.is-open');
+  ok(await page.locator('.prefs__nav').count() === 3 && await page.locator('#prefs-back').isHidden(), 'настройки: 3 раздела');
+  await page.click('.prefs__nav[data-page="chats"]');
+  ok(await page.locator('#prefs-title').textContent() === 'Настройки чатов' && await page.locator('#prefs-preview').isVisible(), 'раздел «Настройки чатов» с предпросмотром');
   ok(await page.locator('.theme-sw').count() === 8, 'палитры: 7 готовых + свой цвет');
   await page.click('.theme-sw[data-palette="mint"]');
   await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--aqua-teal-600').toLowerCase() === '#12896b');
@@ -35,11 +38,22 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.click('.qr__item >> nth=2');
   ok(be.prefsPuts.at(-1).quick_reaction === '😂', 'быстрая реакция выбрана');
 
+  // Вид сообщений: ползунки меняют CSS-переменные сразу и сохраняются
+  await page.locator('#bubble-radius').fill('4');
+  await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--bubble-radius') === '4px');
+  await page.locator('#text-size').fill('120');
+  await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--msg-scale') === '1.2');
+  await page.waitForTimeout(200);
+  ok(be.prefsPuts.some((p) => p.bubble_radius === 4) && be.prefsPuts.some((p) => p.text_size === 120), 'скругление и размер текста сохранены');
+  ok(await page.evaluate(() => getComputedStyle(document.querySelector('#prefs-preview .msg--out .msg__bubble')).borderTopLeftRadius) === '4px', 'предпросмотр использует скругление');
+  await page.screenshot({ path: 'tests/shots/chat-settings.png' });
+  await page.click('#prefs-back'); await page.click('.prefs__nav[data-page="privacy"]');
   await page.selectOption('#priv-who_can_write', 'contacts');
   await page.selectOption('#priv-who_can_voice', 'nobody');
   await page.waitForTimeout(300);
   ok(be.privPuts[0].who_can_write === 'contacts' && be.privPuts[1].who_can_voice === 'nobody', 'приватность сохранена');
 
+  await page.click('#prefs-back'); await page.click('.prefs__nav[data-page="account"]');
   await page.click('details:has(#form-username) > summary'); await page.fill('#form-username-username', 'alice2'); await page.fill('#form-username-password', 'bad');
   await page.click('#form-username button[type=submit]'); await page.waitForSelector('#form-username .form-error:not([hidden])');
   ok((await page.textContent('#form-username .form-error')).includes('Неверный пароль'), 'ошибка смены логина показана');
@@ -53,7 +67,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.fill('#form-password-again', 'newpass123'); await page.click('#form-password button[type=submit]');
   await page.waitForFunction(() => document.querySelector('#form-password').closest('details').open === false);
   ok(be.pwPuts.at(-1).new_password === 'newpass123', 'пароль отправлен на сервер');
-  await page.click('#modal-prefs [data-close-modal].btn-icon'); await page.click('#modal-settings [data-close-modal].btn-icon');
+  await page.click('#modal-prefs [data-close-modal].btn-icon');
 
   // Тема сохраняется в кэше и применяется при перезагрузке
   await page.reload(); await page.waitForSelector('#chat-list .chat-item');
@@ -85,7 +99,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
   // Список заблокированных в настройках и разблокировка
   await page.click('#btn-back').catch(() => {}); await page.waitForSelector('#nav-profile');
-  await page.click('#nav-profile'); await page.click('#profile-settings-btn');
+  await page.click('#nav-settings'); await page.click('.prefs__nav[data-page="privacy"]');
   await page.waitForSelector('[data-unblock]');
   await page.click('[data-unblock]'); await page.waitForFunction(() => !document.querySelector('[data-unblock]'));
   ok(be.blocked.size === 0, 'разблокировка из настроек');
