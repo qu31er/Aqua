@@ -47,6 +47,28 @@ def user_profile(user_id: int, me: sqlite3.Row = Depends(get_current_user), conn
     return services.serialize_profile(conn, row, own=(row["id"] == me["id"]), viewer_id=me["id"])
 
 
+@router.get("/users/{user_id}/avatars")
+def user_avatars(user_id: int, _: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+    if _user(conn, user_id) is None:
+        raise HTTPException(404, "Пользователь не найден.")
+    return services.list_avatars(conn, user_id)
+
+
+@router.delete("/profile/avatars/{media_id}")
+async def delete_avatar(media_id: int, user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Убирает фото из галереи. Если оно было текущим, текущим становится следующее (или аватара не будет)."""
+    cur = conn.execute("DELETE FROM user_avatars WHERE user_id = ? AND media_id = ?", (user["id"], media_id))
+    if cur.rowcount == 0:
+        raise HTTPException(404, "Фото не найдено.")
+    if user["avatar_id"] == media_id:
+        nxt = conn.execute("SELECT media_id FROM user_avatars WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user["id"],)).fetchone()
+        conn.execute("UPDATE users SET avatar_id = ? WHERE id = ?", (nxt["media_id"] if nxt else None, user["id"]))
+        conn.commit()
+        await _announce(conn, user["id"])
+    return {"profile": services.serialize_profile(conn, _user(conn, user["id"]), own=True),
+            "avatars": services.list_avatars(conn, user["id"])}
+
+
 # --- Основное -----------------------------------------------------------------------
 class ProfileUpdate(BaseModel):
     display_name: str | None = Field(None, max_length=100)
@@ -78,6 +100,7 @@ async def update_profile(data: ProfileUpdate, user: sqlite3.Row = Depends(get_cu
         fields["avatar_id"] = data.avatar_id
         if data.avatar_id is not None:
             fields["avatar_preset"] = None
+            services.add_avatar(conn, user["id"], data.avatar_id)
     if "avatar_preset" in sent:
         if data.avatar_preset is not None and data.avatar_preset not in config.AVATAR_PRESETS:
             raise HTTPException(422, "Неизвестная системная аватарка.")

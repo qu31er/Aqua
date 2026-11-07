@@ -360,12 +360,7 @@
       <!-- Редактирование -->
       <form class="profile-edit" id="profile-edit" hidden>
         <div class="profile__avatar"><button type="button" class="profile__avatar-btn" id="profile-avatar-edit" aria-label="Сменить аватар"></button></div>
-        <div class="avatar-picker" id="avatar-picker" role="radiogroup" aria-label="Системные аватарки"></div>
-        <div class="avatar-picker__actions">
-          <button class="btn btn--ghost" type="button" id="avatar-upload">Загрузить своё фото</button>
-          <button class="btn btn--ghost" type="button" id="avatar-reset">Убрать</button>
-          <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp" hidden>
-        </div>
+        <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp" hidden>
         <div class="field">
           <label class="field__label" for="profile-nick">Ник</label>
           <input class="input" id="profile-nick" maxlength="40" autocomplete="off" placeholder="Ваш ник" required>
@@ -424,6 +419,22 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Просмотр аватарок (карусель) -->
+<div class="avv" id="avatar-viewer" role="dialog" aria-modal="true" aria-label="Фото профиля" hidden>
+  <div class="avv__bar">
+    <div class="avv__dots" id="avv-dots"></div>
+    <div class="avv__top">
+      <button class="btn-icon avv__btn" type="button" id="avv-close" aria-label="Закрыть"><svg class="icon icon--white"><use href="#i-close"/></svg></button>
+      <div class="avv__who" id="avv-who"></div>
+      <div class="peer-menu-wrap" id="avv-menu-wrap" hidden>
+        <button class="btn-icon avv__btn" type="button" id="avv-more" aria-label="Ещё" aria-haspopup="menu" aria-expanded="false"><svg class="icon icon--white"><use href="#i-more"/></svg></button>
+        <div class="peer-menu" id="avv-menu" role="menu" hidden></div>
+      </div>
+    </div>
+  </div>
+  <div class="avv__track" id="avv-track"></div>
 </div>
 
 <!-- Файловый менеджер -->

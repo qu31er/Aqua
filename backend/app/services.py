@@ -55,6 +55,21 @@ def avatar_ref(media_id: int | None, preset: str | None = None) -> dict | None:
     return None
 
 
+def add_avatar(conn: sqlite3.Connection, user_id: int, media_id: int) -> None:
+    conn.execute("INSERT OR IGNORE INTO user_avatars (user_id, media_id, created_at) VALUES (?, ?, ?)",
+                 (user_id, media_id, now_iso()))
+
+
+def list_avatars(conn: sqlite3.Connection, user_id: int) -> list[dict]:
+    """Все фото профиля: текущее первым, дальше от новых к старым."""
+    cur = conn.execute("SELECT avatar_id FROM users WHERE id = ?", (user_id,)).fetchone()
+    current = cur["avatar_id"] if cur else None
+    rows = conn.execute("SELECT media_id FROM user_avatars WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
+    items = [{"media_id": r["media_id"], "url": f"/api/media/{r['media_id']}", "current": r["media_id"] == current} for r in rows]
+    items.sort(key=lambda x: not x["current"])          # сортировка устойчива: порядок «новые сверху» сохраняется
+    return items
+
+
 def serialize_user(row: sqlite3.Row) -> dict:
     """Публичные данные пользователя (видны собеседникам)."""
     return {
@@ -429,8 +444,10 @@ def can_access_media(conn: sqlite3.Connection, media_id: int, user_id: int) -> b
            UNION
            SELECT 1 FROM users WHERE avatar_id = ?
            UNION
+           SELECT 1 FROM user_avatars WHERE media_id = ?
+           UNION
            SELECT 1 FROM profile_tracks WHERE media_id = ?""",
-        (media_id, user_id, user_id, media_id, media_id, media_id, media_id),
+        (media_id, user_id, user_id, media_id, media_id, media_id, media_id, media_id),
     ).fetchone()
     return row is not None
 

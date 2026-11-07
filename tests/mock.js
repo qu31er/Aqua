@@ -77,7 +77,7 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
   await page.route('**/api/**', async (route) => {
     const req = route.request(); const u = new URL(req.url()); const path = u.pathname.replace('/api', '');
     be.reqs.push(req.method() + ' ' + path);
-    const json = (status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    let m1; const json = (status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (path === '/auth/register') return json(201, { token: 'tok', token_type: 'bearer', user: be.me });
     if (path === '/auth/login') return req.postDataJSON().password === 'secret123'
       ? json(200, { token: 'tok', token_type: 'bearer', user: be.me }) : json(401, { detail: 'Неверное имя пользователя или пароль.' });
@@ -86,9 +86,20 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
       if ('display_name' in d) be.me.display_name = d.display_name || be.me.username;
       if ('bio' in d) be.me.bio = d.bio;
       if ('avatar_preset' in d) be.me.avatar = d.avatar_preset ? { preset: d.avatar_preset } : null;
-      if ('avatar_id' in d) be.me.avatar = d.avatar_id ? { id: d.avatar_id, url: `/api/media/${d.avatar_id}` } : null;
+      if ('avatar_id' in d) { be.me.avatar = d.avatar_id ? { id: d.avatar_id, url: `/api/media/${d.avatar_id}` } : null;
+        be.gallery = be.gallery || []; if (d.avatar_id && !be.gallery.includes(d.avatar_id)) be.gallery.unshift(d.avatar_id); }
       return json(200, be.me);
     }
+    if (/^\/users\/[123]\/avatars$/.test(path)) {
+      if (path !== '/users/1/avatars') return json(200, [{ media_id: 501, url: '/api/media/501', current: true }, { media_id: 502, url: '/api/media/502', current: false }]);
+      const g = be.gallery || [], cur = be.me.avatar?.id;
+      return json(200, [...g].sort((a, b) => (b === cur) - (a === cur)).map((id) => ({ media_id: id, url: `/api/media/${id}`, current: id === cur })));
+    }
+    m1 = path.match(/^\/profile\/avatars\/(\d+)$/);
+    if (m1 && req.method() === 'DELETE') { const id = +m1[1]; be.gallery = (be.gallery || []).filter((x) => x !== id);
+      if (be.me.avatar?.id === id) { const n = be.gallery[0]; be.me.avatar = n ? { id: n, url: `/api/media/${n}` } : null; }
+      const cur = be.me.avatar?.id;
+      return json(200, { profile: be.me, avatars: be.gallery.map((x) => ({ media_id: x, url: `/api/media/${x}`, current: x === cur })) }); }
     if (path === '/profile/prefs') { const d = req.postDataJSON(); (be.prefsPuts = be.prefsPuts || []).push(d);
       be.me.prefs = { ...(be.me.prefs || {}), ...d };
       if (d.wallpaper?.type === 'media') be.me.prefs.wallpaper = { ...d.wallpaper, url: `/api/media/${d.wallpaper.media_id}` };

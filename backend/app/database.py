@@ -85,6 +85,16 @@ CREATE TABLE IF NOT EXISTS profile_tracks (
 );
 CREATE INDEX IF NOT EXISTS idx_tracks_user ON profile_tracks(user_id, id);
 
+-- Все аватарки пользователя (карусель в профиле); текущая — users.avatar_id.
+CREATE TABLE IF NOT EXISTS user_avatars (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    media_id   INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL,
+    UNIQUE (user_id, media_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_avatars ON user_avatars(user_id, id);
+
 -- Контакты и чёрный список (односторонние: «я добавил» / «я заблокировал»).
 CREATE TABLE IF NOT EXISTS contacts (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -161,6 +171,9 @@ def init_db(path: Path = DB_PATH) -> None:
                          ("privacy", "TEXT"), ("prefs", "TEXT"), ("avatar_preset", "TEXT")):
             if col not in ucols:
                 conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
+        # Ранее загруженные аватарки попадают в галерею
+        conn.execute("""INSERT OR IGNORE INTO user_avatars (user_id, media_id, created_at)
+                        SELECT id, avatar_id, created_at FROM users WHERE avatar_id IS NOT NULL""")
         conn.commit()
     finally:
         conn.close()

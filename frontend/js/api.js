@@ -69,6 +69,8 @@ export const api = {
   uploadMedia: (file) => { const form = new FormData(); form.append('file', file); return request('/media', { method: 'POST', form }); },
   editMessage: (id, text) => request(`/messages/${id}`, { method: 'PATCH', json: { text } }),
   deleteMessage: (id, scope) => request(`/messages/${id}?scope=${scope}`, { method: 'DELETE' }),
+  userAvatars: (id) => request(`/users/${id}/avatars`),
+  deleteAvatar: (mediaId) => request(`/profile/avatars/${mediaId}`, { method: 'DELETE' }),
   userProfile: (id) => request(`/users/${id}/profile`),
   updatePrivacy: (body) => request('/profile/privacy', { method: 'PUT', json: body }),
   updatePrefs: (body) => request('/profile/prefs', { method: 'PUT', json: body }),

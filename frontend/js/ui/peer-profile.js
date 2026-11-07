@@ -6,7 +6,7 @@ import { toast } from './toast.js';
 import { openModal, closeModal } from './modal.js';
 import { lastSeenText } from '../format.js';
 
-export function initPeerProfile({ onChange }) {
+export function initPeerProfile({ onChange, onAvatars }) {
   let user = null;                 // профиль, показанный сейчас
   const menu = $('#peer-menu'), more = $('#peer-more');
 
@@ -55,7 +55,10 @@ export function initPeerProfile({ onChange }) {
     } catch (e) { toast(e.message || 'Не удалось выполнить.'); }
   }
 
+  $('#peer-big-avatar').addEventListener('click', () => user && onAvatars?.(user));
+
   return {
+    openAvatars: () => user && onAvatars?.(user),
     async open(userId) {
       try { user = await api.userProfile(userId); } catch (e) { toast(e.message || 'Профиль недоступен.'); return; }
       closeMenu(); render(); openModal('modal-peer');

@@ -24,6 +24,7 @@ import { initPicker } from './ui/picker.js';
 import { initProfile } from './ui/profile.js';
 import { initSettings } from './ui/settings.js';
 import { initPeerProfile } from './ui/peer-profile.js';
+import { initAvatarViewer, initPullDown } from './ui/avatar-viewer.js';
 import { applyPrefs, applyCachedPrefs } from './theme.js';
 import { copyText } from './ui/clipboard.js';
 import { initSplash } from './ui/splash.js';
@@ -67,13 +68,18 @@ function applyProfile(u) {
   const chat = activeChat();
   if (chat) renderHeader(chat);
 }
-const profile = initProfile({ onChange: applyProfile });
+const profile = initProfile({ onChange: applyProfile, onAvatars: () => avatarViewer.open(state.user, true) });
+const avatarViewer = initAvatarViewer({ onOwnChange: (u) => applyProfile(u) });
+// Потянуть вниз в профиле — открыть фото крупно (свой и чужой профиль)
+initPullDown($('#modal-settings .modal__body'), () => avatarViewer.open(state.user, true), { target: $('#profile-avatar') });
+
 applyCachedPrefs();
 const settings = initSettings({
   onUsername: (u) => applyProfile(u),
   onUnblock: () => {},
 });
-const peerProfile = initPeerProfile({ onChange: () => {} });
+const peerProfile = initPeerProfile({ onChange: () => {}, onAvatars: (u) => avatarViewer.open(u, false) });
+initPullDown($('#modal-peer .modal__body'), () => peerProfile.openAvatars(), { target: $('#peer-big-avatar') });
 
 const authView = initAuthView({
   onLogin: (u, p) => authenticate(api.login(u, p)),
