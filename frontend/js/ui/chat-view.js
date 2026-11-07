@@ -33,7 +33,7 @@ function mediaNode(media, kind, meta, cover) {
 function messageNode(m, opts = {}) {
   const mine = m.sender.id === state.user.id;
   const bubble = el('div', { class: 'msg__bubble' },
-    opts.group && !mine ? el('div', { class: 'msg__author', text: m.sender.username }) : null,
+    opts.group && !mine ? el('button', { type: 'button', class: 'msg__author', text: m.sender.username, dataset: { userId: m.sender.id } }) : null,
     m.media ? mediaNode(m.media, m.kind, m.meta, m.cover) : null,
     m.text ? el('p', { class: 'msg__text', text: m.text }) : null,
     el('span', { class: 'msg__meta', text: (m.edited_at ? 'изменено · ' : '') + timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : '') }));

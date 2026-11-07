@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .database import init_db
-from .routers import auth, chats, gifs, media, message_ops, profile, reactions, ws
+from .routers import auth, chats, contacts, gifs, media, message_ops, profile, reactions, ws
 
 
 @asynccontextmanager
@@ -62,6 +62,7 @@ app.include_router(media.router)
 app.include_router(reactions.router)
 app.include_router(message_ops.router)
 app.include_router(gifs.router)
+app.include_router(contacts.router)
 app.include_router(profile.router)
 app.include_router(ws.router)
 

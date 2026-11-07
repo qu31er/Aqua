@@ -6,9 +6,9 @@ import { AquaSocket } from './socket.js';
 import { storage } from './storage.js';
 import { haptic, initTapHaptics } from './haptics.js';
 import { initEdgeSwipeBack, initViewportFix } from './touch.js';
-import { TOKEN_KEY, PAGE_SIZE, TYPING_EXPIRE_MS } from './config.js';
+import { TOKEN_KEY, PAGE_SIZE, TYPING_EXPIRE_MS, REACTIONS } from './config.js';
 import {
-  state, activeChat, setChats, upsertChat, sortChats, setPresence, resetState, pendingToMessage,
+  state, activeChat, peerOf, setChats, upsertChat, sortChats, setPresence, resetState, pendingToMessage,
 } from './state.js';
 import { toast } from './ui/toast.js';
 import { initModals, openModal, closeModal } from './ui/modal.js';
@@ -22,6 +22,9 @@ import {
 import { initComposer } from './ui/composer.js';
 import { initPicker } from './ui/picker.js';
 import { initProfile } from './ui/profile.js';
+import { initSettings } from './ui/settings.js';
+import { initPeerProfile } from './ui/peer-profile.js';
+import { applyPrefs, applyCachedPrefs } from './theme.js';
 import { copyText } from './ui/clipboard.js';
 import { initSplash } from './ui/splash.js';
 import { initReactions, closeReactionMenu } from './ui/reactions.js';
@@ -65,6 +68,12 @@ function applyProfile(u) {
   if (chat) renderHeader(chat);
 }
 const profile = initProfile({ onChange: applyProfile });
+applyCachedPrefs();
+const settings = initSettings({
+  onUsername: (u) => applyProfile(u),
+  onUnblock: () => {},
+});
+const peerProfile = initPeerProfile({ onChange: () => {} });
 
 const authView = initAuthView({
   onLogin: (u, p) => authenticate(api.login(u, p)),
@@ -73,6 +82,7 @@ const authView = initAuthView({
 
 async function enterApp(user) {
   state.user = user;
+  applyPrefs(user.prefs);
   profile.render();
   setEmpty(true);
   showScreen('chat');
@@ -87,7 +97,8 @@ function logout(message) {
   resetState();
   connectedOnce = false; outageShown = false;
   searchQuery = ''; foundUsers = null; $('#search').value = '';
-  closeModal('modal-settings');
+  closeModal('modal-settings'); closeModal('modal-prefs'); closeModal('modal-peer');
+  applyPrefs({}, { cache: false });
   stopMedia();
   app.dataset.chatOpen = 'false';
   picker.close();
@@ -514,12 +525,21 @@ const voiceRecorder = initVoiceRecorder({ onSend: sendVoice, onError: (msg) => {
 initReactions({
   container: $('#messages'),
   onPick: pickReaction,
+  getQuick: () => state.user.prefs?.quick_reaction || REACTIONS[0],
   getActions: messageActions,
   getMine: (id) => (state.history.get(state.activeChatId)?.items.find((m) => m.id === id)?.reactions ?? [])
     .filter((r) => r.users.includes(state.user.id)).map((r) => r.emoji),
 });
 
 $('#btn-back').addEventListener('click', goBack);
+$('#profile-settings-btn').addEventListener('click', () => { settings.render(); openModal('modal-prefs'); });
+const openPeer = () => { const p = peerOf(activeChat() ?? { type: '' }); if (p) peerProfile.open(p.id); };
+$('#chat-peer').addEventListener('click', openPeer);
+$('#chat-peer').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPeer(); } });
+$('#messages').addEventListener('click', (e) => {
+  const a = e.target.closest('.msg__author[data-user-id]');
+  if (a && Number(a.dataset.userId) !== state.user.id) peerProfile.open(Number(a.dataset.userId));
+});
 $('#btn-menu').addEventListener('click', () => { profile.render(); openModal('modal-settings'); });
 $('#btn-logout').addEventListener('click', () => logout());
 

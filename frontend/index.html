@@ -68,6 +68,9 @@
 <symbol id="i-logout" viewBox="0 0 24 24">
     <path d="M10 4.5H6.5A2.5 2.5 0 0 0 4 7v10a2.5 2.5 0 0 0 2.5 2.5H10M15 8l4 4-4 4M19 12H9.5"/>
   </symbol>
+<symbol id="i-more" viewBox="0 0 24 24">
+    <circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/>
+  </symbol>
 <symbol id="i-menu" viewBox="0 0 24 24">
     <path d="M4 7h16M4 12h16M4 17h16"/>
   </symbol>
@@ -252,7 +255,7 @@
         <button class="btn-icon btn--back icon-anim-nudge" type="button" id="btn-back" aria-label="Назад к списку чатов">
           <svg class="icon"><use href="#i-back"/></svg>
         </button>
-        <div class="chat__peer">
+        <div class="chat__peer" id="chat-peer" role="button" tabindex="0" aria-label="Профиль собеседника">
           <span id="peer-avatar"></span>
           <div style="min-width:0">
             <h2 class="peer__name" id="peer-name" style="font-size:1rem"></h2>
@@ -346,6 +349,7 @@
         <div class="profile__tiles">
           <button class="profile__tile" type="button" id="profile-photo-btn"><svg class="icon"><use href="#i-camera"/></svg><span>Выбрать фото</span></button>
           <button class="profile__tile" type="button" id="profile-edit-btn"><svg class="icon"><use href="#i-edit"/></svg><span>Изменить</span></button>
+          <button class="profile__tile" type="button" id="profile-settings-btn"><svg class="icon"><use href="#i-settings"/></svg><span>Настройки</span></button>
           <button class="profile__tile profile__tile--danger" type="button" id="btn-logout"><svg class="icon"><use href="#i-logout"/></svg><span>Выйти</span></button>
         </div>
         <div class="profile__info">
@@ -380,6 +384,45 @@
       <button class="btn btn--ghost" type="button" id="profile-cancel">Отмена</button>
       <button class="btn btn--primary" type="button" id="profile-save">Сохранить</button>
     </footer>
+  </div>
+</div>
+
+<!-- Настройки -->
+<div class="modal" id="modal-prefs" role="dialog" aria-modal="true" aria-labelledby="prefs-title">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__dialog">
+    <header class="modal__header">
+      <h2 class="modal__title" id="prefs-title">Настройки</h2>
+      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="modal__body scroll" id="prefs-body"></div>
+  </div>
+</div>
+
+<!-- Профиль собеседника -->
+<div class="modal" id="modal-peer" role="dialog" aria-modal="true" aria-labelledby="peer-title">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__dialog">
+    <header class="modal__header">
+      <h2 class="modal__title" id="peer-title">Профиль</h2>
+      <div class="peer-menu-wrap">
+        <button class="btn-icon" type="button" id="peer-more" aria-label="Ещё" aria-haspopup="menu" aria-expanded="false"><svg class="icon"><use href="#i-more"/></svg></button>
+        <div class="peer-menu" id="peer-menu" role="menu" hidden></div>
+      </div>
+      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="modal__body scroll">
+      <div class="profile" id="peer-view">
+        <div class="profile__avatar" id="peer-big-avatar"></div>
+        <h3 class="profile__name" id="peer-big-name"></h3>
+        <p class="profile__status" id="peer-big-status"></p>
+        <p class="profile__badge" id="peer-badge" hidden></p>
+        <div class="profile__info">
+          <div class="profile__row"><span class="profile__label">О себе</span><p class="profile__bio" id="peer-bio"></p></div>
+          <div class="profile__row"><span class="profile__label">Логин</span><p class="profile__login" id="peer-login"></p></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

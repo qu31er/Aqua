@@ -46,7 +46,7 @@ export function closeReactionMenu() {
  *   getMine — какие эмодзи пользователь уже поставил (для подсветки в меню)
  *   getActions — действия под реакциями (копировать, изменить, удалить); confirm — текст второго нажатия
  */
-export function initReactions({ container, onPick, getMine, getActions = () => [] }) {
+export function initReactions({ container, onPick, getMine, getActions = () => [], getQuick = null }) {
   function open(bubble) {
     const msg = bubble.closest('.msg');
     if (!msg || !isRealId(msg.dataset.id) || msg.classList.contains('is-pending')) return;
@@ -86,7 +86,10 @@ export function initReactions({ container, onPick, getMine, getActions = () => [
     const bubble = e.target.closest('.msg__bubble');
     if (bubble && !e.target.closest('.vp, a, audio, video')) {
       window.getSelection()?.removeAllRanges();      // двойной клик по умолчанию выделяет слово — убираем
-      open(bubble);
+      const msg = bubble.closest('.msg');
+      // Быстрая реакция из настроек; без неё (getQuick не задан) двойной клик открывает меню
+      if (getQuick && msg && isRealId(msg.dataset.id) && !msg.classList.contains('is-pending')) { closeReactionMenu(); haptic.tap(); onPick(Number(msg.dataset.id), getQuick()); }
+      else open(bubble);
     }
   });
   // Телефон: долгое нажатие. Системное меню iOS отключено через -webkit-touch-callout: none.

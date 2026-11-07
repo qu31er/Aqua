@@ -85,6 +85,20 @@ CREATE TABLE IF NOT EXISTS profile_tracks (
 );
 CREATE INDEX IF NOT EXISTS idx_tracks_user ON profile_tracks(user_id, id);
 
+-- Контакты и чёрный список (односторонние: «я добавил» / «я заблокировал»).
+CREATE TABLE IF NOT EXISTS contacts (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    contact_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL,
+    PRIMARY KEY (user_id, contact_id)
+);
+CREATE TABLE IF NOT EXISTS blocks (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    blocked_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL,
+    PRIMARY KEY (user_id, blocked_id)
+);
+
 -- «Удалить у себя»: сообщение скрыто только для этого пользователя.
 CREATE TABLE IF NOT EXISTS message_hidden (
     message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,

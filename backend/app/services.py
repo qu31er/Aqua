@@ -75,12 +75,24 @@ def serialize_tracks(conn: sqlite3.Connection, user_id: int) -> list[dict]:
              "url": f"/api/media/{r['media_id']}"} for r in rows]
 
 
-def serialize_profile(conn: sqlite3.Connection, row: sqlite3.Row, *, own: bool) -> dict:
-    """Профиль целиком. Приватность и настройки отдаём только владельцу."""
+def is_contact(conn: sqlite3.Connection, owner_id: int, other_id: int) -> bool:
+    return conn.execute("SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ?", (owner_id, other_id)).fetchone() is not None
+
+
+def is_blocked(conn: sqlite3.Connection, owner_id: int, other_id: int) -> bool:
+    """True, если owner заблокировал other."""
+    return conn.execute("SELECT 1 FROM blocks WHERE user_id = ? AND blocked_id = ?", (owner_id, other_id)).fetchone() is not None
+
+
+def serialize_profile(conn: sqlite3.Connection, row: sqlite3.Row, *, own: bool, viewer_id: int | None = None) -> dict:
+    """Профиль целиком. Приватность и настройки отдаём только владельцу; для чужого — признаки «контакт/заблокирован»."""
     data = {**serialize_user(row), "bio": row["bio"] or "", "tracks": serialize_tracks(conn, row["id"])}
     if own:
         data["privacy"] = get_privacy(row)
         data["prefs"] = get_prefs(row)
+    elif viewer_id is not None:
+        data["is_contact"] = is_contact(conn, viewer_id, row["id"])
+        data["is_blocked"] = is_blocked(conn, viewer_id, row["id"])
     return data
 
 
@@ -334,7 +346,8 @@ def _has_written_to(conn: sqlite3.Connection, chat_id: int, author: int) -> bool
 def enforce_privacy(conn: sqlite3.Connection, chat_id: int, sender_id: int, *, voice: bool) -> None:
     """Личные чаты: учитываем, кому получатель разрешил писать / слать голосовые.
 
-    «contacts» = получатель уже сам писал отправителю в этом чате.
+    «contacts» = получатель добавил отправителя в контакты или уже сам писал ему в этом чате.
+    Заблокированный пользователь писать не может вовсе.
     На группы и каналы настройки не действуют.
     """
     chat = conn.execute("SELECT type FROM chats WHERE id = ?", (chat_id,)).fetchone()
@@ -345,13 +358,18 @@ def enforce_privacy(conn: sqlite3.Connection, chat_id: int, sender_id: int, *, v
         (chat_id, sender_id)).fetchone()
     if other is None:
         return
+    if is_blocked(conn, sender_id, other["id"]):
+        raise ServiceError(403, "Вы заблокировали этого пользователя. Разблокируйте его, чтобы писать.")
+    if is_blocked(conn, other["id"], sender_id):
+        raise ServiceError(403, "Вы не можете писать этому пользователю.")
     privacy = get_privacy(other)
     rules = [("who_can_write", "Пользователь ограничил, кто может ему писать.")]
     if voice:
         rules.append(("who_can_voice", "Пользователь не принимает голосовые сообщения от вас."))
     for field, message in rules:
         value = privacy[field]
-        if value == "nobody" or (value == "contacts" and not _has_written_to(conn, chat_id, other["id"])):
+        if value == "nobody" or (value == "contacts" and not (is_contact(conn, other["id"], sender_id)
+                                                              or _has_written_to(conn, chat_id, other["id"]))):
             raise ServiceError(403, message)
 
 

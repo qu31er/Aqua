@@ -1,0 +1,135 @@
+/* Окно «Настройки»: оформление, обои, быстрая реакция, приватность, заблокированные, логин и пароль. */
+import { $, el } from '../dom.js';
+import { api } from '../api.js';
+import { state } from '../state.js';
+import { REACTIONS } from '../config.js';
+import { PALETTES, WALLPAPERS, applyPrefs } from '../theme.js';
+import { toast } from './toast.js';
+import { avatar } from './avatar.js';
+
+const WHO = [['everyone', 'Все'], ['contacts', 'Только контакты'], ['nobody', 'Никто']];
+
+/** onLogout не нужен: выход остаётся в профиле. onUsername(user) — логин изменён. */
+export function initSettings({ onUsername, onUnblock }) {
+  const body = $('#prefs-body');
+
+  const prefs = () => state.user.prefs ?? {};
+  async function savePrefs(patch) {
+    try {
+      state.user.prefs = await api.updatePrefs(patch);
+      applyPrefs(state.user.prefs);
+      render();
+    } catch (e) { toast(e.message || 'Не удалось сохранить.'); }
+  }
+
+  const section = (title, ...kids) => el('section', { class: 'prefs__section' }, el('h3', { class: 'prefs__title', text: title }), ...kids);
+
+  /* ---- Оформление ---- */
+  function themeSection() {
+    const cur = prefs().palette || 'sea';
+    const swatches = PALETTES.map((p) => el('button', {
+      type: 'button', class: 'theme-sw', role: 'radio', 'aria-checked': String(cur === p.id), 'aria-label': p.name, title: p.name,
+      dataset: { palette: p.id }, style: `--sw:${p.swatch}`, onclick: () => savePrefs({ palette: p.id, accent: null }),
+    }));
+    const custom = el('label', { class: 'theme-sw theme-sw--custom', title: 'Свой цвет', 'aria-label': 'Свой цвет' },
+      el('input', { type: 'color', id: 'accent-input', value: prefs().accent || '#0F7DA6',
+        onchange: (e) => savePrefs({ palette: 'custom', accent: e.target.value }) }));
+    custom.setAttribute('aria-checked', String(cur === 'custom'));
+    if (cur === 'custom') custom.style.setProperty('--sw', prefs().accent);
+    return section('Цветовая гамма', el('div', { class: 'theme-sws', role: 'radiogroup', 'aria-label': 'Цветовая гамма' }, swatches, custom));
+  }
+
+  /* ---- Обои ---- */
+  function wallpaperSection() {
+    const w = prefs().wallpaper ?? { type: 'none' };
+    const tile = (id, name, css, on, click) => el('button', {
+      type: 'button', class: 'wp', role: 'radio', 'aria-checked': String(on), 'aria-label': name, title: name,
+      dataset: { wp: id }, style: css ? `background:${css}` : null, onclick: click,
+    }, css ? null : el('span', { text: 'Нет' }));
+    const fileInput = el('input', { type: 'file', accept: 'image/*', hidden: true, id: 'wp-file', onchange: async () => {
+      const f = fileInput.files[0]; fileInput.value = ''; if (!f) return;
+      try { const m = await api.uploadMedia(f); await savePrefs({ wallpaper: { type: 'media', media_id: m.id } }); }
+      catch (e) { toast(e.message || 'Не удалось загрузить обои.'); }
+    } });
+    return section('Обои чата', el('div', { class: 'wps', role: 'radiogroup', 'aria-label': 'Обои чата' },
+      tile('none', 'Без обоев', null, w.type === 'none', () => savePrefs({ wallpaper: { type: 'none' } })),
+      WALLPAPERS.map((x) => tile(x.id, x.name, x.css, w.type === 'preset' && w.id === x.id, () => savePrefs({ wallpaper: { type: 'preset', id: x.id } }))),
+      el('button', { type: 'button', class: `wp wp--own${w.type === 'media' ? ' is-on' : ''}`, id: 'wp-own', 'aria-label': 'Своё фото', title: 'Своё фото',
+        onclick: () => fileInput.click() }, el('span', { text: '+ Фото' })), fileInput));
+  }
+
+  /* ---- Быстрая реакция ---- */
+  function reactionSection() {
+    const cur = prefs().quick_reaction || REACTIONS[0];
+    return section('Быстрая реакция',
+      el('p', { class: 'prefs__hint', text: 'Ставится двойным касанием по сообщению.' }),
+      el('div', { class: 'qr', role: 'radiogroup' }, REACTIONS.map((r) => el('button', {
+        type: 'button', class: 'qr__item', role: 'radio', 'aria-checked': String(cur === r), 'aria-label': r, text: r,
+        onclick: () => savePrefs({ quick_reaction: r }),
+      }))));
+  }
+
+  /* ---- Приватность ---- */
+  function select(field, label) {
+    const cur = state.user.privacy?.[field] || 'everyone';
+    const sel = el('select', { class: 'input', id: `priv-${field}`, 'aria-label': label,
+      onchange: async () => {
+        try { state.user.privacy = await api.updatePrivacy({ [field]: sel.value }); }
+        catch (e) { toast(e.message || 'Не удалось сохранить.'); sel.value = cur; }
+      } }, WHO.map(([v, t]) => el('option', { value: v, text: t, selected: v === cur })));
+    return el('div', { class: 'field' }, el('label', { class: 'field__label', for: `priv-${field}`, text: label }), sel);
+  }
+  const blockedBox = el('div', { class: 'blocked', id: 'blocked-list' });
+  async function loadBlocked() {
+    try {
+      const list = await api.listBlocks();
+      blockedBox.replaceChildren(...(list.length ? list.map((u) => el('div', { class: 'blocked__row' },
+        avatar(u.display_name, { user: u, small: true }),
+        el('span', { class: 'blocked__name', text: `${u.display_name} @${u.username}` }),
+        el('button', { type: 'button', class: 'btn btn--ghost', dataset: { unblock: u.id }, text: 'Разблокировать', onclick: async () => {
+          try { await api.setBlocked(u.id, false); onUnblock?.(u.id); loadBlocked(); } catch (e) { toast(e.message); }
+        } }),
+      )) : [el('p', { class: 'prefs__hint', text: 'Список пуст.' })]));
+    } catch (e) { blockedBox.textContent = e.message; }
+  }
+  const privacySection = () => section('Приватность',
+    select('who_can_write', 'Кто может писать мне'), select('who_can_voice', 'Кто может присылать голосовые'),
+    el('h4', { class: 'prefs__sub', text: 'Заблокированные' }), blockedBox);
+
+  /* ---- Аккаунт ---- */
+  function formBox(id, summary, fields, submitText, onSubmit) {
+    const err = el('p', { class: 'form-error', role: 'alert', hidden: true });
+    const inputs = fields.map((f) => el('div', { class: 'field' },
+      el('label', { class: 'field__label', for: `${id}-${f.name}`, text: f.label }),
+      el('input', { class: 'input', id: `${id}-${f.name}`, name: f.name, type: f.type || 'text', autocomplete: f.auto || 'off', maxlength: 64 })));
+    const form = el('form', { class: 'prefs__form', id, novalidate: true, onsubmit: async (e) => {
+      e.preventDefault(); err.hidden = true;
+      const v = Object.fromEntries(inputs.map((d) => { const i = d.querySelector('input'); return [i.name, i.value]; }));
+      try { await onSubmit(v); form.reset(); details.open = false; }
+      catch (x) { err.textContent = x.message || 'Ошибка.'; err.hidden = false; }
+    } }, inputs, err, el('button', { class: 'btn btn--primary', type: 'submit', text: submitText }));
+    const details = el('details', { class: 'prefs__details' }, el('summary', { text: summary }), form);
+    return details;
+  }
+  const accountSection = () => section('Аккаунт',
+    formBox('form-username', 'Сменить логин', [
+      { name: 'username', label: 'Новый логин', auto: 'username' }, { name: 'password', label: 'Текущий пароль', type: 'password', auto: 'current-password' },
+    ], 'Сменить логин', async (v) => { const u = await api.changeUsername(v.username, v.password); onUsername(u); toast('Логин изменён'); }),
+    formBox('form-password', 'Сменить пароль', [
+      { name: 'current', label: 'Текущий пароль', type: 'password', auto: 'current-password' },
+      { name: 'next', label: 'Новый пароль', type: 'password', auto: 'new-password' },
+      { name: 'again', label: 'Повторите новый пароль', type: 'password', auto: 'new-password' },
+    ], 'Сменить пароль', async (v) => {
+      if (v.next !== v.again) throw new Error('Пароли не совпадают.');
+      await api.changePassword(v.current, v.next); toast('Пароль изменён');
+    }));
+
+  function render() {
+    // Раскрытые формы и прокрутку сохраняем при перерисовке после выбора
+    const top = $('#prefs-body').scrollTop;
+    body.replaceChildren(themeSection(), wallpaperSection(), reactionSection(), privacySection(), accountSection());
+    $('#prefs-body').scrollTop = top;
+    loadBlocked();
+  }
+  return { render };
+}

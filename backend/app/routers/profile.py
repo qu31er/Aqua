@@ -40,11 +40,11 @@ def my_profile(user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Conn
 
 
 @router.get("/users/{user_id}/profile")
-def user_profile(user_id: int, _: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+def user_profile(user_id: int, me: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
     row = _user(conn, user_id)
     if row is None:
         raise HTTPException(404, "Пользователь не найден.")
-    return services.serialize_profile(conn, row, own=False)
+    return services.serialize_profile(conn, row, own=(row["id"] == me["id"]), viewer_id=me["id"])
 
 
 # --- Основное -----------------------------------------------------------------------

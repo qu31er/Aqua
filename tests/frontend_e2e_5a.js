@@ -47,8 +47,8 @@ const login = async (page) => { await page.addInitScript(() => localStorage.setI
   await page.screenshot({ path: OUT + '5a-menu-desktop.png' });
   await page.keyboard.press('Escape');
   ok(await page.locator('.menu').count() === 0, 'Esc закрывает меню');
-  await target.dblclick();
-  ok(await page.locator('.menu').isVisible(), 'двойной клик тоже открывает меню');
+  await target.click({ button: 'right' });
+  ok(await page.locator('.menu').isVisible(), 'правый клик открывает меню');
   await page.locator('.menu .menu__item', { hasText: '🔥' }).click();
   await page.waitForSelector('#messages .msg--in .reaction');
   ok(be.reqs.includes('PUT /messages/122/reactions') || be.reqs.some((r) => /PUT \/messages\/\d+\/reactions/.test(r)), 'реакция отправлена на сервер (PUT)');

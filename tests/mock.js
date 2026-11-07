@@ -89,6 +89,24 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
       if ('avatar_id' in d) be.me.avatar = d.avatar_id ? { id: d.avatar_id, url: `/api/media/${d.avatar_id}` } : null;
       return json(200, be.me);
     }
+    if (path === '/profile/prefs') { const d = req.postDataJSON(); (be.prefsPuts = be.prefsPuts || []).push(d);
+      be.me.prefs = { ...(be.me.prefs || {}), ...d };
+      if (d.wallpaper?.type === 'media') be.me.prefs.wallpaper = { ...d.wallpaper, url: `/api/media/${d.wallpaper.media_id}` };
+      return json(200, be.me.prefs); }
+    if (path === '/profile/privacy') { const d = req.postDataJSON(); (be.privPuts = be.privPuts || []).push(d); be.me.privacy = { ...(be.me.privacy || {}), ...d }; return json(200, be.me.privacy); }
+    if (path === '/profile/username') { const d = req.postDataJSON();
+      if (d.password !== 'secret123') return json(403, { detail: 'Неверный пароль.' });
+      if (d.username === 'carl') return json(409, { detail: 'Этот логин уже занят.' });
+      be.me.username = d.username; return json(200, be.me); }
+    if (path === '/profile/password') { const d = req.postDataJSON(); (be.pwPuts = be.pwPuts || []).push(d);
+      return d.current_password === 'secret123' ? json(200, { ok: true }) : json(403, { detail: 'Текущий пароль неверный.' }); }
+    if (path === '/blocks' && req.method() === 'GET') return json(200, [...(be.blocked || new Set())].map((id) => ({ ...be.carl, id, display_name: be.carl.username })));
+    const mb = path.match(/^\/blocks\/(\d+)$/);
+    if (mb) { be.blocked = be.blocked || new Set(); req.method() === 'PUT' ? be.blocked.add(+mb[1]) : be.blocked.delete(+mb[1]); return json(200, { is_blocked: req.method() === 'PUT' }); }
+    const mc = path.match(/^\/contacts\/(\d+)$/);
+    if (mc) { be.contacts = be.contacts || new Set(); req.method() === 'PUT' ? be.contacts.add(+mc[1]) : be.contacts.delete(+mc[1]); return json(200, { is_contact: req.method() === 'PUT' }); }
+    const mu = path.match(/^\/users\/(\d+)\/profile$/);
+    if (mu) { const id = +mu[1]; return json(200, { ...be.carl, id, bio: 'Дизайнер. Люблю море.', tracks: [], is_contact: Boolean(be.contacts?.has(id)), is_blocked: Boolean(be.blocked?.has(id)) }); }
     if (path === '/auth/me') return json(200, be.me);
     if (path === '/chats' && req.method() === 'GET') return json(200, be.chats());
     let m = path.match(/^\/chats\/(\d+)\/messages$/);
