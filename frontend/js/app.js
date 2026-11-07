@@ -34,6 +34,7 @@ import { initReactions, closeReactionMenu } from './ui/reactions.js';
 import { stopVoice } from './ui/voice-player.js';
 import { initVoiceRecorder } from './ui/voice-recorder.js';
 import { initFileManager } from './ui/file-manager.js';
+import { initLightbox } from './ui/lightbox.js';
 import { openEditor } from './editor/editor-modal.js';
 
 const app = $('#app');
@@ -329,7 +330,7 @@ function messageActions(id) {
   const mine = m.sender.id === state.user.id;
   const list = [];
   if (m.text) list.push({ icon: 'i-copy', label: 'Копировать', run: async () => toast((await copyText(m.text)) ? 'Скопировано' : 'Не удалось скопировать') });
-  if (mine && m.kind !== 'voice') {
+  if (mine && m.kind !== 'voice' && !m.meta?.sticker) {
     list.push({ icon: 'i-edit', label: 'Изменить', run: () => composer.startEdit({ id: m.id, text: m.text, allowEmpty: m.kind !== 'text' }) });
   }
   list.push({ icon: 'i-trash', label: 'Удалить у меня', danger: true, run: () => removeMessage(id, 'me') });
@@ -521,22 +522,33 @@ const composer = initComposer({
   onEmoji: () => picker.toggle(),
 });
 
-/** Панель смайликов/GIF: смайлик вставляется в текст, GIF импортируется и уходит как изображение. */
+/** Панель смайликов/стикеров/GIF: смайлик вставляется в текст, стикер и GIF уходят отдельным сообщением. */
 const picker = initPicker({
   onEmoji: (e) => composer.insert(e),
   onGif: async (it) => {
     if (!state.activeChatId) return;
     try {
-      const media = await api.gifImport(it.url, it.title);
-      enqueue({ kind: 'image', mediaId: media.id, mediaInfo: media, meta: null });
+      if (it.saved) {                                              // из «Сохранённых»: файл уже наш
+        const m = it.saved;
+        enqueue({ kind: m.kind, mediaId: m.id, mediaInfo: m, meta: { gif: true } });
+      } else {                                                     // из поиска: скачиваем на сервер и отправляем
+        const media = await api.gifImport(it.url, it.title);
+        enqueue({ kind: 'image', mediaId: media.id, mediaInfo: media, meta: { gif: true } });
+      }
       picker.close();
     } catch (e) { toast(e.message || 'Не удалось отправить GIF.'); haptic.error(); }
+  },
+  onSticker: (s) => {
+    if (!state.activeChatId) return;
+    enqueue({ kind: 'image', mediaId: s.media_id, mediaInfo: { id: s.media_id, url: s.url, name: 'sticker', mime: 'image/webp', size: 0 }, meta: { sticker: s.id, pack: s.pack_id } });
+    setTimeout(() => { if (picker.isOpen() && picker.tab() === 'stickers') picker.reloadStickers(); }, 900);   // «недавние» обновятся
   },
   onTabChange: (tab) => composer.setPickerIcon(tab),
   onToggle: (open) => composer.setPickerOpen(open),
 });
 
 const fileManager = initFileManager({ onDeviceFile: handleFile, onPickExisting: handleExisting });
+initLightbox({ container: $('#messages'), getMessage: findMessage, onDelete: (id, mine) => removeMessage(id, mine ? 'all' : 'me') });
 const voiceRecorder = initVoiceRecorder({ onSend: sendVoice, onError: (msg) => { toast(msg); haptic.error(); } });
 initReactions({
   container: $('#messages'),

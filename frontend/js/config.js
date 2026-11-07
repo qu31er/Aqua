@@ -22,6 +22,8 @@ export const ENTER_NEWLINE_ON_TOUCH = true;
 export const REACTIONS = [
   '\u{1F44D}', '\u2764\uFE0F', '\u{1F602}', '\u{1F62E}',
   '\u{1F622}', '\u{1F525}', '\u{1F44F}', '\u{1F389}',
+  // негативные
+  '\u{1F44E}', '\u{1F92C}', '\u{1F4A9}', '\u{1F921}',
 ];
 
 // Голосовые сообщения

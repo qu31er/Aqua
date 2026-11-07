@@ -96,7 +96,7 @@ export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEm
     },
     /** Значок кнопки справа от поля: 'smile' или 'gif' (запоминаемая вкладка пикера). */
     setPickerIcon(tab) {
-      $('#btn-emoji use').setAttribute('href', tab === 'gif' ? '#i-gif' : '#i-smile');
+      $('#btn-emoji use').setAttribute('href', tab === 'gif' ? '#i-gif' : tab === 'stickers' ? '#i-sticker' : '#i-smile');
     },
     setPickerOpen: (open) => $('#btn-emoji').setAttribute('aria-expanded', String(open)),
     focus: () => { if (!isTouch()) input.focus(); },   // на телефоне не открываем клавиатуру сама по себе

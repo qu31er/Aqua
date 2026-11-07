@@ -17,14 +17,27 @@ const nearBottom = () => messagesEl.scrollHeight - messagesEl.scrollTop - messag
 export const scrollToBottom = (smooth = false) =>
   messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
 
-function mediaNode(media, kind, meta, cover) {
-  const url = media.local ? media.url : mediaUrl(media.url);     // local — blob: URL ещё не отправленного голосового
-  if (kind === 'image') return el('img', { class: 'msg__media', src: url, alt: media.name, loading: 'lazy' });
-  if (kind === 'video') {
-    const poster = cover ? (cover.local ? cover.url : mediaUrl(cover.url)) : null;
-    return el('video', { class: 'msg__media', src: url, controls: true, preload: 'metadata', playsinline: true, ...(poster ? { poster } : {}) });
-  }
+function mediaNode(m) {
+  const { media, kind, meta, cover } = m;
+  const url = media.local ? media.url : mediaUrl(media.url);     // local — blob: URL ещё не отправленного файла
+  if (meta?.sticker) return el('img', { class: 'msg__sticker', src: url, alt: 'Стикер', draggable: 'false', dataset: { pack: meta.pack ?? '' } });
   if (kind === 'voice') return voicePlayer({ src: url, duration: meta?.duration, wave: meta?.wave });
+  if (kind === 'image' || kind === 'video') {
+    const gif = Boolean(meta?.gif) && kind === 'video';          // GIF из видео без звука — крутим по кругу
+    let node;
+    if (kind === 'image') node = el('img', { class: 'msg__media', src: url, alt: media.name, loading: 'lazy' });
+    else if (gif) {
+      node = el('video', { class: 'msg__media is-gif', src: url, loop: true, autoplay: true, muted: true, playsinline: true, preload: 'metadata' });
+      node.muted = true;                                          // атрибут сам по себе не включает беззвучный режим в части браузеров
+    } else {
+      const poster = cover ? (cover.local ? cover.url : mediaUrl(cover.url)) : null;
+      node = el('video', { class: 'msg__media', src: url, preload: 'metadata', playsinline: true, ...(poster ? { poster } : {}) });
+    }
+    const wrap = el('div', { class: 'msg__mediawrap' }, node,
+      kind === 'video' && !gif ? el('span', { class: 'msg__play', 'aria-hidden': 'true' }, icon('i-play', 'icon--white')) : null);
+    if (media.id && !media.local) wrap.append(el('button', { type: 'button', class: 'msg__more', 'aria-label': 'Действия с медиа' }, icon('i-more', 'icon--white')));
+    return wrap;
+  }
   return el('a', { class: 'msg__file', href: url, download: media.name },
     icon('i-file'), el('span', {}, el('b', { text: media.name }), el('small', { text: formatSize(media.size) })));
 }
@@ -34,11 +47,11 @@ function messageNode(m, opts = {}) {
   const mine = m.sender.id === state.user.id;
   const bubble = el('div', { class: 'msg__bubble' },
     opts.group && !mine ? el('button', { type: 'button', class: 'msg__author', text: m.sender.username, dataset: { userId: m.sender.id } }) : null,
-    m.media ? mediaNode(m.media, m.kind, m.meta, m.cover) : null,
+    m.media ? mediaNode(m) : null,
     m.text ? el('p', { class: 'msg__text', text: m.text }) : null,
     el('span', { class: 'msg__meta', text: (m.edited_at ? 'изменено · ' : '') + timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : '') }));
   const node = el('article', {
-    class: `msg msg--${mine ? 'out' : 'in'}${opts.animate ? ' is-new' : ''}${opts.pending ? ' is-pending' : ''}${opts.failed ? ' is-failed' : ''}`,
+    class: `msg msg--${mine ? 'out' : 'in'}${m.meta?.sticker ? ' msg--sticker' : ''}${m.media && !m.meta?.sticker && (m.kind === 'image' || m.kind === 'video') ? ' msg--media' : ''}${opts.animate ? ' is-new' : ''}${opts.pending ? ' is-pending' : ''}${opts.failed ? ' is-failed' : ''}`,
     dataset: { id: m.id, ...(m.clientId ? { clientId: m.clientId } : {}) },
   }, bubble);
   if (m.reactions?.length) node.append(reactionsNode(m.reactions));
@@ -47,10 +60,16 @@ function messageNode(m, opts = {}) {
 
 /** Ряд «чипов» реакций под сообщением: эмодзи + счётчик; свои подсвечены. */
 function reactionsNode(reactions) {
+  const chat = state.chats.get(state.activeChatId);
+  const direct = chat?.type === 'direct';                    // в личном чате вместо числа — аватарка того, кто поставил
+  const member = (id) => chat?.members.find((x) => x.id === id) ?? (id === state.user.id ? state.user : null);
   return el('div', { class: 'msg__reactions' }, reactions.map((r) => el('button', {
-    class: `reaction${r.users.includes(state.user.id) ? ' is-mine' : ''}`, type: 'button',
+    class: `reaction${r.users.includes(state.user.id) ? ' is-mine' : ''}${direct ? ' reaction--faces' : ''}`, type: 'button',
     dataset: { emoji: r.emoji }, 'aria-label': `Реакция ${r.emoji}: ${r.count}`,
-  }, r.emoji, el('span', { text: r.count }))));
+  }, r.emoji, direct
+    ? [...r.users.slice(0, 3).map((id) => { const u = member(id); return u ? avatar(u.display_name || u.username, { user: u, small: true }) : null; }),
+       r.users.length > 3 ? el('span', { class: 'reaction__more', text: `+${r.users.length - 3}` }) : null]
+    : el('span', { text: r.count }))));
 }
 
 /** Обновляет реакции у уже показанного сообщения (без перерисовки всей ленты). */

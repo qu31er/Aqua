@@ -124,6 +124,49 @@ CREATE TABLE IF NOT EXISTS reactions (
     created_at TEXT    NOT NULL,
     PRIMARY KEY (message_id, user_id, emoji)
 );
+-- Стикеры: паки (создаёт и наполняет только владелец), «мои паки», недавние (последние 30) и избранные.
+CREATE TABLE IF NOT EXISTS sticker_packs (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title      TEXT    NOT NULL,
+    created_at TEXT    NOT NULL
+);
+CREATE TABLE IF NOT EXISTS stickers (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    pack_id    INTEGER NOT NULL REFERENCES sticker_packs(id) ON DELETE CASCADE,
+    media_id   INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stickers_pack ON stickers(pack_id, id);
+CREATE INDEX IF NOT EXISTS idx_stickers_media ON stickers(media_id);
+CREATE TABLE IF NOT EXISTS user_packs (
+    user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    pack_id  INTEGER NOT NULL REFERENCES sticker_packs(id) ON DELETE CASCADE,
+    added_at TEXT    NOT NULL,
+    PRIMARY KEY (user_id, pack_id)
+);
+CREATE TABLE IF NOT EXISTS sticker_recent (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sticker_id INTEGER NOT NULL REFERENCES stickers(id) ON DELETE CASCADE,
+    used_at    TEXT    NOT NULL,
+    PRIMARY KEY (user_id, sticker_id)
+);
+CREATE TABLE IF NOT EXISTS sticker_favs (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sticker_id INTEGER NOT NULL REFERENCES stickers(id) ON DELETE CASCADE,
+    added_at   TEXT    NOT NULL,
+    PRIMARY KEY (user_id, sticker_id)
+);
+
+-- Сохранённые GIF (у GIF нет «недавних»: сюда попадают все отправленные и сохранённые гифки).
+CREATE TABLE IF NOT EXISTS saved_gifs (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    media_id   INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    created_at TEXT    NOT NULL,
+    UNIQUE (user_id, media_id)
+);
+CREATE INDEX IF NOT EXISTS idx_saved_gifs ON saved_gifs(user_id, id DESC);
 """
 
 

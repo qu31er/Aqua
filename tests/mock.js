@@ -35,11 +35,16 @@ function makeBackend() {
     { id: 2, type: 'direct', title: 'carl', created_at: iso(9999), members: [me, carl], last_message: lastOf(2) }];
   const toggle = (id, emoji, userId) => {
     const r = (reactions[id] ??= {}); const u = (r[emoji] ??= []);
-    const i = u.indexOf(userId); if (i >= 0) u.splice(i, 1); else u.push(userId);
+    // одна реакция на пользователя: другая заменяет прежнюю, та же — снимает
+    const had = Object.entries(r).find(([e, us]) => us.includes(userId))?.[0];
+    for (const us of Object.values(r)) { const k = us.indexOf(userId); if (k >= 0) us.splice(k, 1); }
+    if (had !== emoji) u.push(userId);
     const m = Object.values(msgs).flat().find((x) => x.id === id); if (m) m.reactions = reactionsOf(id);
     return reactionsOf(id);
   };
-  return { hidden, me, bob, carl, msgs, media, chats, add, toggle, reactionsOf, reqs: [], deleted: [], wsIn: [], uploads: [],
+  const stk = { packs: [], recent: [], favs: [], added: new Set(), sid: 0, pid: 0 };
+  const savedGifs = [];
+  return { stk, savedGifs, hidden, me, bob, carl, msgs, media, chats, add, toggle, reactionsOf, reqs: [], deleted: [], wsIn: [], uploads: [],
     newMedia: (o) => (media[++mediaId] = { id: mediaId, ...o }) };
 }
 
@@ -66,8 +71,15 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
       if (d.type === 'ping') ws.send(JSON.stringify({ type: 'pong' }));
       if (d.type === 'message') {
         const md = d.media_id ? be.media[d.media_id] : null;
+        let meta = d.meta ?? null;
+        if (meta?.sticker) {                                           // как сервер: добавляет пак, трогает «недавние»
+          const st = be.stk.packs.flatMap((p) => p.stickers).find((x) => x.id === meta.sticker);
+          meta = { sticker: meta.sticker, pack: st?.pack_id }; d.text = null;
+          be.stk.recent = [meta.sticker, ...be.stk.recent.filter((x) => x !== meta.sticker)].slice(0, 30);
+        }
+        if (meta?.gif && md && !be.savedGifs.includes(md.id)) be.savedGifs.unshift(md.id);
         const m = be.add(d.chat_id, be.me, d.text, 0, md ? {
-          kind: md.kind, meta: d.meta ?? null,
+          kind: md.kind, meta,
           cover: d.cover_id && be.media[d.cover_id] ? { id: d.cover_id, url: `/api/media/${d.cover_id}` } : null,
           media: { id: md.id, url: `/api/media/${md.id}`, name: md.name, mime: md.mime, size: md.size } } : {});
         setTimeout(() => ws.send(JSON.stringify({ type: 'message', message: m, client_id: d.client_id })), 80);
@@ -169,6 +181,29 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
       const { bytes, ...pub } = rec;
       return json(201, { ...pub, url: `/api/media/${rec.id}` });
     }
+    const pub = (id) => { const { bytes, ...x } = be.media[id]; return { ...x, url: `/api/media/${id}` }; };
+    const sj = (st) => ({ id: st.id, pack_id: st.pack_id, media_id: st.media_id, url: `/api/media/${st.media_id}` });
+    const pj = (p) => ({ id: p.id, title: p.title, owner_id: 1, own: true, added: be.stk.added.has(p.id), preview: p.stickers[0] ? sj(p.stickers[0]) : null, stickers: p.stickers.map(sj) });
+    const allSt = () => be.stk.packs.flatMap((p) => p.stickers);
+    if (path === '/gifs/saved' && req.method() === 'GET') return json(200, be.savedGifs.map(pub));
+    if (path === '/gifs/saved' && req.method() === 'POST') { const id = req.postDataJSON().media_id; if (!be.savedGifs.includes(id)) be.savedGifs.unshift(id); (be.savedCalls ??= []).push(id); return json(201, pub(id)); }
+    if ((m = path.match(/^\/gifs\/saved\/(\d+)$/)) && req.method() === 'DELETE') { be.savedGifs = be.savedGifs.filter((x) => x !== +m[1]); return route.fulfill({ status: 204 }); }
+    if ((m = path.match(/^\/media\/(\d+)\/clone$/)) && req.method() === 'POST') { (be.clones ??= []).push(+m[1]); return json(201, pub(+m[1])); }
+    if (path === '/stickers' && req.method() === 'GET') return json(200, { packs: be.stk.packs.filter((p) => be.stk.added.has(p.id)).map(pj),
+      recent: be.stk.recent.map((id) => allSt().find((x) => x.id === id)).filter(Boolean).map(sj), favorites: be.stk.favs.map((id) => allSt().find((x) => x.id === id)).filter(Boolean).map(sj) });
+    if (path === '/stickers/packs' && req.method() === 'POST') { const p = { id: ++be.stk.pid, title: req.postDataJSON().title, stickers: [] }; be.stk.packs.push(p); be.stk.added.add(p.id); return json(201, pj(p)); }
+    if ((m = path.match(/^\/stickers\/packs\/(\d+)$/))) {
+      const p = be.stk.packs.find((x) => x.id === +m[1]); if (!p) return json(404, { detail: 'Стикерпак не найден.' });
+      if (req.method() === 'GET') return json(200, pj(p));
+      if (req.method() === 'PATCH') { p.title = req.postDataJSON().title; return json(200, pj(p)); }
+      if (req.method() === 'DELETE') { be.stk.packs = be.stk.packs.filter((x) => x !== p); be.stk.added.delete(p.id); return route.fulfill({ status: 204 }); }
+    }
+    if ((m = path.match(/^\/stickers\/packs\/(\d+)\/add$/))) { be.stk.added.add(+m[1]); return json(200, pj(be.stk.packs.find((x) => x.id === +m[1]))); }
+    if ((m = path.match(/^\/stickers\/packs\/(\d+)\/stickers$/)) && req.method() === 'POST') {
+      const p = be.stk.packs.find((x) => x.id === +m[1]); const st = { id: ++be.stk.sid, pack_id: p.id, media_id: req.postDataJSON().media_id }; p.stickers.push(st); return json(201, sj(st)); }
+    if ((m = path.match(/^\/stickers\/(\d+)\/favorite$/))) { const id = +m[1]; be.stk.favs = be.stk.favs.filter((x) => x !== id); if (req.method() === 'PUT') be.stk.favs.unshift(id); return route.fulfill({ status: 204 }); }
+    if ((m = path.match(/^\/stickers\/(\d+)\/recent$/)) && req.method() === 'DELETE') { be.stk.recent = be.stk.recent.filter((x) => x !== +m[1]); return route.fulfill({ status: 204 }); }
+    if ((m = path.match(/^\/stickers\/(\d+)$/)) && req.method() === 'DELETE') { for (const p of be.stk.packs) p.stickers = p.stickers.filter((x) => x.id !== +m[1]); return route.fulfill({ status: 204 }); }
     if (path === '/gifs/status') return json(200, { enabled: be.gifsEnabled !== false, provider: 'giphy' });
     if (path === '/gifs/search') {
       const q = u.searchParams.get('q'), pos = +u.searchParams.get('pos');

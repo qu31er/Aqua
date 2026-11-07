@@ -4,8 +4,11 @@
 (проверка членства, лимиты, сериализация) были в одном месте.
 """
 import json
+import shutil
 import sqlite3
+import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import config
 from .realtime import manager
@@ -299,11 +302,12 @@ def toggle_reaction(
     if row is None:
         raise ServiceError(404, "Сообщение не найдено.")
     require_member(conn, row["chat_id"], user_id)
-    removed = conn.execute(
-        "DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?",
-        (message_id, user_id, emoji),
-    ).rowcount
-    if not removed:
+    # Одна реакция на пользователя: повторный выбор той же снимает её, другая — заменяет прежнюю
+    had = conn.execute(
+        "SELECT emoji FROM reactions WHERE message_id = ? AND user_id = ?", (message_id, user_id)
+    ).fetchone()
+    conn.execute("DELETE FROM reactions WHERE message_id = ? AND user_id = ?", (message_id, user_id))
+    if had is None or had["emoji"] != emoji:
         conn.execute(
             "INSERT INTO reactions (message_id, user_id, emoji, created_at) VALUES (?, ?, ?, ?)",
             (message_id, user_id, emoji, now_iso()),
@@ -336,11 +340,22 @@ def get_history(
 
 
 def validate_meta(kind: str, meta) -> dict | None:
-    """Метаданные принимаем только у голосовых: длительность и форма волны (для отрисовки без декодирования аудио)."""
+    """Метаданные: у голосовых — длительность и волна; у фото/видео — флаг GIF; у картинок — id стикера."""
     if meta is None:
         return None
+    if not isinstance(meta, dict):
+        raise ServiceError(400, "Неверные метаданные сообщения.")
+    if kind in ("image", "video") and ("gif" in meta or "sticker" in meta):
+        if "sticker" in meta:
+            sid = meta["sticker"]
+            if kind != "image" or isinstance(sid, bool) or not isinstance(sid, int):
+                raise ServiceError(400, "Неверный стикер.")
+            return {"sticker": sid}
+        if meta.get("gif") is not True:
+            raise ServiceError(400, "Неверные метаданные GIF.")
+        return {"gif": True}
     bad = ServiceError(400, "Неверные данные голосового сообщения.")
-    if kind != "voice" or not isinstance(meta, dict):
+    if kind != "voice":
         raise bad
     duration, wave = meta.get("duration"), meta.get("wave")
     if isinstance(duration, bool) or not isinstance(duration, (int, float)) \
@@ -407,18 +422,27 @@ def create_message(
         raise ServiceError(400, f"Сообщение длиннее {config.MAX_MESSAGE_LENGTH} символов.")
 
     kind = "text"
+    media = None
     if media_id is not None:
         media = conn.execute(
             "SELECT owner_id, kind FROM media WHERE id = ?", (media_id,)
         ).fetchone()
-        # Отправлять можно только свои файлы.
-        if media is None or media["owner_id"] != sender_id:
+        if media is None:
             raise ServiceError(400, "Вложение не найдено.")
         kind = media["kind"]
 
     if kind == "voice":
         enforce_privacy(conn, chat_id, sender_id, voice=True)
     meta = validate_meta(kind, meta)
+    if meta and "sticker" in meta:
+        # Стикер: файл принадлежит автору пака, но отправить его может любой — берём его media из стикера
+        st = conn.execute("SELECT pack_id, media_id FROM stickers WHERE id = ?", (meta["sticker"],)).fetchone()
+        if st is None or st["media_id"] != media_id:
+            raise ServiceError(400, "Стикер не найден.")
+        meta["pack"] = st["pack_id"]
+        text = None
+    elif media is not None and media["owner_id"] != sender_id:
+        raise ServiceError(400, "Вложение не найдено.")        # обычные файлы — только свои
     if cover_id is not None:
         # Обложка — только у видео, только своя картинка
         cover = conn.execute("SELECT owner_id, kind FROM media WHERE id = ?", (cover_id,)).fetchone()
@@ -429,6 +453,10 @@ def create_message(
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (chat_id, sender_id, kind, text, media_id, json.dumps(meta) if meta else None, cover_id, now_iso()),
     )
+    if meta and meta.get("gif"):
+        save_gif(conn, sender_id, media_id)                      # отправленные GIF попадают в «Сохранённые»
+    elif meta and "sticker" in meta:
+        touch_recent(conn, sender_id, meta["sticker"])           # и в «недавние» стикеры
     return get_message(conn, cur.lastrowid)
 
 
@@ -446,8 +474,10 @@ def can_access_media(conn: sqlite3.Connection, media_id: int, user_id: int) -> b
            UNION
            SELECT 1 FROM user_avatars WHERE media_id = ?
            UNION
-           SELECT 1 FROM profile_tracks WHERE media_id = ?""",
-        (media_id, user_id, user_id, media_id, media_id, media_id, media_id, media_id),
+           SELECT 1 FROM profile_tracks WHERE media_id = ?
+           UNION
+           SELECT 1 FROM stickers WHERE media_id = ?""",             # стикеры доступны всем вошедшим
+        (media_id, user_id, user_id, media_id, media_id, media_id, media_id, media_id, media_id),
     ).fetchone()
     return row is not None
 
@@ -504,3 +534,79 @@ def delete_message(conn: sqlite3.Connection, message_id: int, user_id: int, scop
 def last_message_for(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> dict | None:
     """Актуальное «последнее сообщение» чата для конкретного зрителя (после удаления/скрытия)."""
     return serialize_chat(conn, chat_id, viewer_id)["last_message"]
+
+
+# --- Копия медиа (сохранить чужую GIF, переслать фото) ------------------------------
+def clone_media(conn: sqlite3.Connection, media_id: int, user_id: int) -> sqlite3.Row:
+    """Даёт пользователю собственную копию доступного ему файла (если уже владелец — возвращает исходный)."""
+    if not can_access_media(conn, media_id, user_id):
+        raise ServiceError(404, "Файл не найден.")
+    row = conn.execute("SELECT * FROM media WHERE id = ?", (media_id,)).fetchone()
+    if row["owner_id"] == user_id:
+        return row
+    src = config.UPLOAD_DIR / row["stored_name"]
+    if not src.exists():
+        raise ServiceError(404, "Файл не найден.")
+    stored = f"{uuid.uuid4().hex}{Path(row['stored_name']).suffix}"
+    shutil.copyfile(src, config.UPLOAD_DIR / stored)
+    cur = conn.execute(
+        "INSERT INTO media (owner_id, original_name, stored_name, mime, size, kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (user_id, row["original_name"], stored, row["mime"], row["size"], row["kind"], now_iso()),
+    )
+    return conn.execute("SELECT * FROM media WHERE id = ?", (cur.lastrowid,)).fetchone()
+
+
+# --- Сохранённые GIF -------------------------------------------------------------------
+def media_json(row: sqlite3.Row) -> dict:
+    return {"id": row["id"], "url": f"/api/media/{row['id']}", "name": row["original_name"], "mime": row["mime"],
+            "size": row["size"], "kind": row["kind"], "created_at": row["created_at"]}
+
+
+def save_gif(conn: sqlite3.Connection, user_id: int, media_id: int) -> None:
+    conn.execute("INSERT OR IGNORE INTO saved_gifs (user_id, media_id, created_at) VALUES (?, ?, ?)",
+                 (user_id, media_id, now_iso()))
+
+
+def list_saved_gifs(conn: sqlite3.Connection, user_id: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT m.* FROM saved_gifs g JOIN media m ON m.id = g.media_id WHERE g.user_id = ? ORDER BY g.id DESC", (user_id,)
+    ).fetchall()
+    return [media_json(r) for r in rows]
+
+
+# --- Стикеры ---------------------------------------------------------------------------
+RECENT_STICKERS = 30
+
+
+def _sticker_json(row: sqlite3.Row) -> dict:
+    return {"id": row["id"], "pack_id": row["pack_id"], "media_id": row["media_id"], "url": f"/api/media/{row['media_id']}"}
+
+
+def touch_recent(conn: sqlite3.Connection, user_id: int, sticker_id: int) -> None:
+    conn.execute("INSERT OR REPLACE INTO sticker_recent (user_id, sticker_id, used_at) VALUES (?, ?, ?)",
+                 (user_id, sticker_id, now_iso()))
+    conn.execute(
+        "DELETE FROM sticker_recent WHERE user_id = ? AND sticker_id NOT IN "
+        "(SELECT sticker_id FROM sticker_recent WHERE user_id = ? ORDER BY used_at DESC, rowid DESC LIMIT ?)",
+        (user_id, user_id, RECENT_STICKERS))
+
+
+def serialize_pack(conn: sqlite3.Connection, pack: sqlite3.Row, viewer_id: int) -> dict:
+    rows = conn.execute("SELECT * FROM stickers WHERE pack_id = ? ORDER BY id", (pack["id"],)).fetchall()
+    stickers = [_sticker_json(r) for r in rows]
+    mine_list = conn.execute("SELECT 1 FROM user_packs WHERE user_id = ? AND pack_id = ?", (viewer_id, pack["id"])).fetchone()
+    return {"id": pack["id"], "title": pack["title"], "owner_id": pack["owner_id"], "own": pack["owner_id"] == viewer_id,
+            "added": mine_list is not None, "preview": stickers[0] if stickers else None, "stickers": stickers}
+
+
+def sticker_library(conn: sqlite3.Connection, user_id: int) -> dict:
+    packs = conn.execute(
+        "SELECT p.* FROM user_packs up JOIN sticker_packs p ON p.id = up.pack_id WHERE up.user_id = ? ORDER BY up.added_at, p.id", (user_id,)
+    ).fetchall()
+    recent = conn.execute(
+        "SELECT s.* FROM sticker_recent r JOIN stickers s ON s.id = r.sticker_id WHERE r.user_id = ? "
+        "ORDER BY r.used_at DESC, r.rowid DESC LIMIT ?", (user_id, RECENT_STICKERS)).fetchall()
+    favs = conn.execute(
+        "SELECT s.* FROM sticker_favs f JOIN stickers s ON s.id = f.sticker_id WHERE f.user_id = ? ORDER BY f.added_at DESC, f.rowid DESC", (user_id,)).fetchall()
+    return {"packs": [serialize_pack(conn, p, user_id) for p in packs],
+            "recent": [_sticker_json(r) for r in recent], "favorites": [_sticker_json(r) for r in favs]}

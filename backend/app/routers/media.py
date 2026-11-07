@@ -7,7 +7,8 @@ from fastapi.responses import FileResponse
 
 from .. import config
 from ..deps import get_current_user, get_db, get_user_header_or_query
-from ..services import can_access_media, media_summary, now_iso
+from .. import services
+from ..services import ServiceError, can_access_media, media_summary, now_iso
 
 router = APIRouter(prefix="/api/media", tags=["media"])
 
@@ -96,6 +97,15 @@ def recent_media(
         params.append(kind)
     rows = conn.execute(sql + " ORDER BY id DESC LIMIT ?", (*params, limit)).fetchall()
     return [_serialize(r) for r in rows]
+
+
+@router.post("/{media_id}/clone", status_code=201)
+def clone(media_id: int, user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Своя копия доступного файла — для «Переслать» и «Сохранить»."""
+    try:
+        return _serialize(services.clone_media(conn, media_id, user["id"]))
+    except ServiceError as e:
+        raise HTTPException(e.status, e.message)
 
 
 @router.get("/{media_id}")
