@@ -103,7 +103,7 @@ export function initPicker({ onEmoji, onGif, onSticker, onTabChange, onToggle })
   const forceMuted = (v) => { if (v.tagName === 'VIDEO') { v.muted = true; v.play?.().catch(() => {}); } return v; };
 
   async function loadSaved() {
-    const seq = ++gifState.seq; gifGrid.replaceChildren(); note('');
+    const seq = ++gifState.seq; gifGrid.replaceChildren(); note(''); gifGrid.classList.add('is-saved');
     try {
       const items = await api.savedGifs();
       if (seq !== gifState.seq) return;
@@ -126,7 +126,7 @@ export function initPicker({ onEmoji, onGif, onSticker, onTabChange, onToggle })
     const g = gifState;
     if (!g.q) { if (reset) loadSaved(); return; }
     if (g.loading && !reset) return;
-    if (reset) { g.next = 0; g.seq++; gifGrid.replaceChildren(); gifGrid.scrollTop = 0; note(''); }
+    if (reset) { g.next = 0; g.seq++; gifGrid.classList.remove('is-saved'); gifGrid.replaceChildren(); gifGrid.scrollTop = 0; note(''); }
     if (g.next === null) return;
     const seq = g.seq; g.loading = true;
     try {
