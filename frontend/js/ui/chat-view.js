@@ -42,14 +42,61 @@ function mediaNode(m) {
     icon('i-file'), el('span', {}, el('b', { text: media.name }), el('small', { text: formatSize(media.size) })));
 }
 
+/** Прочитал ли собеседник сообщение (личные чаты): его last_read_id ≥ id сообщения. */
+function isRead(m) {
+  const chat = state.chats.get(m.chat_id ?? state.activeChatId);
+  const peer = chat?.type === 'direct' ? chat.members.find((x) => x.id !== state.user.id) : null;
+  return Boolean(peer && (chat.reads?.[peer.id] ?? 0) >= m.id);
+}
+
+/** Статус своего сообщения: часы — ещё не отправлено, ✓ — доставлено, ✓✓ — прочитано. */
+function ticksNode(m, opts) {
+  const status = opts.pending ? 'pending' : isRead(m) ? 'read' : 'sent';
+  const label = { pending: 'Не отправлено', sent: 'Доставлено', read: 'Прочитано' }[status];
+  return el('span', { class: `msg__ticks is-${status}`, role: 'img', 'aria-label': label, title: label },
+    icon(status === 'pending' ? 'i-clock' : status === 'read' ? 'i-checks' : 'i-check'));
+}
+
+/** Пересчитывает галочки у уже показанных сообщений (когда собеседник прочитал чат). */
+export function refreshTicks() {
+  for (const t of messagesEl.querySelectorAll('.msg--out:not(.is-pending) .msg__ticks')) {
+    const id = Number(t.closest('.msg').dataset.id);
+    const read = isRead({ id, chat_id: state.activeChatId });
+    if (t.classList.contains('is-read') === read) continue;
+    t.className = `msg__ticks is-${read ? 'read' : 'sent'}`;
+    t.querySelector('use').setAttribute('href', read ? '#i-checks' : '#i-check');
+    const label = read ? 'Прочитано' : 'Доставлено'; t.setAttribute('aria-label', label); t.title = label;
+  }
+}
+
+const pinnedBar = $('#pinned-bar');
+/** Закреплённое сообщение — полоска под шапкой чата. */
+export function setPinnedBar(message) {
+  pinnedBar.hidden = !message;
+  pinnedBar.dataset.id = message?.id ?? '';
+  if (message) $('#pinned-text').textContent = message.text || ({ image: 'Фото', video: 'Видео', voice: 'Голосовое сообщение', file: 'Файл' }[message.kind] ?? '');
+}
+
+/** Прокрутка к сообщению (если оно загружено) с подсветкой. */
+export function scrollToMessage(id) {
+  const node = messagesEl.querySelector(`.msg[data-id="${id}"]`);
+  if (!node) return false;
+  node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  node.classList.add('is-flash'); setTimeout(() => node.classList.remove('is-flash'), 1400);
+  return true;
+}
+
 /** Узел сообщения. opts: {pending, failed, animate, group} */
 function messageNode(m, opts = {}) {
   const mine = m.sender.id === state.user.id;
   const bubble = el('div', { class: 'msg__bubble' },
     opts.group && !mine ? el('button', { type: 'button', class: 'msg__author', text: m.sender.username, dataset: { userId: m.sender.id } }) : null,
+    m.forwarded?.name ? el('p', { class: 'msg__fwd', text: `Переслано от ${m.forwarded.name}` }) : null,
     m.media ? mediaNode(m) : null,
     m.text ? el('p', { class: 'msg__text', text: m.text }) : null,
-    el('span', { class: 'msg__meta', text: (m.edited_at ? 'изменено · ' : '') + timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : '') }));
+    el('span', { class: 'msg__meta' },
+      (m.edited_at ? 'изменено · ' : '') + timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : ''),
+      mine && !opts.failed ? ticksNode(m, opts) : null));
   const node = el('article', {
     class: `msg msg--${mine ? 'out' : 'in'}${m.meta?.sticker ? ' msg--sticker' : ''}${m.media && !m.meta?.sticker && (m.kind === 'image' || m.kind === 'video') ? ' msg--media' : ''}${opts.animate ? ' is-new' : ''}${opts.pending ? ' is-pending' : ''}${opts.failed ? ' is-failed' : ''}`,
     dataset: { id: m.id, ...(m.clientId ? { clientId: m.clientId } : {}) },

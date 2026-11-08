@@ -119,3 +119,36 @@ async def post_message(
         services.member_ids(conn, chat_id), {"type": "message", "message": message}
     )
     return message
+
+
+class ReadIn(BaseModel):
+    up_to: int
+
+
+@router.post("/chats/{chat_id}/read")
+async def mark_read(chat_id: int, data: ReadIn, user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Прочитано до сообщения up_to. Остальные участники получают событие `read` (две галочки)."""
+    try:
+        up_to = services.mark_read(conn, chat_id, user["id"], data.up_to)
+    except ServiceError as e:
+        _raise(e)
+    conn.commit()
+    await manager.send_to_users(services.member_ids(conn, chat_id),
+                                {"type": "read", "chat_id": chat_id, "user_id": user["id"], "up_to": up_to}, exclude=user["id"])
+    return {"chat_id": chat_id, "up_to": up_to}
+
+
+class PinIn(BaseModel):
+    message_id: int | None = None
+
+
+@router.put("/chats/{chat_id}/pin")
+async def pin_message(chat_id: int, data: PinIn, user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Закрепить сообщение в чате (message_id=null — открепить). Событие `pinned` получают все участники."""
+    try:
+        message = services.set_pinned(conn, chat_id, user["id"], data.message_id)
+    except ServiceError as e:
+        _raise(e)
+    conn.commit()
+    await manager.send_to_users(services.member_ids(conn, chat_id), {"type": "pinned", "chat_id": chat_id, "message": message})
+    return {"chat_id": chat_id, "message": message}

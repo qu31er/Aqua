@@ -16,7 +16,7 @@ import { initAuthView } from './ui/auth-view.js';
 import { initChatList } from './ui/chat-list.js';
 import {
   initChatView, setEmpty, renderHeader, renderStatus, renderMessages, appendMessage,
-  resolvePending, markFailed, prependMessages, setTyping, showLoader, scrollToBottom, setReactions,
+  resolvePending, markFailed, refreshTicks, setPinnedBar, scrollToMessage, prependMessages, setTyping, showLoader, scrollToBottom, setReactions,
   updateMessage, refreshMessages,
 } from './ui/chat-view.js';
 import { initComposer } from './ui/composer.js';
@@ -35,6 +35,10 @@ import { stopVoice } from './ui/voice-player.js';
 import { initVoiceRecorder } from './ui/voice-recorder.js';
 import { initFileManager } from './ui/file-manager.js';
 import { initLightbox } from './ui/lightbox.js';
+import { initSelection } from './ui/selection.js';
+import { forwardMessages } from './ui/media-actions.js';
+import { askDelete } from './ui/dialogs.js';
+import { getDraft, setDraft } from './drafts.js';
 import { openEditor } from './editor/editor-modal.js';
 
 const app = $('#app');
@@ -154,9 +158,12 @@ async function openChat(id, { push = true } = {}) {
   // На телефоне диалог — «следующий экран»: добавляем запись в историю, чтобы системная кнопка «Назад» вела в список
   if (push && !wasOpen && isMobileLayout()) history.pushState({ chat: id }, '');
   setEmpty(false);
+  selection.exit();
   renderHeader(chat);
   renderList();
   setTyping(Boolean(state.typing.get(id)?.size));
+  composer.setText(getDraft(id));
+  setPinnedBar(chat.pinned);
 
   if (state.history.has(id)) {
     renderMessages(chat);
@@ -166,9 +173,11 @@ async function openChat(id, { push = true } = {}) {
     await loadHistory(id, true);
   }
   composer.focus();
+  markRead(chat);
 }
 
 function closeChat() {
+  selection.exit();
   stopMedia();
   state.activeChatId = null;
   app.dataset.chatOpen = 'false';
@@ -179,6 +188,7 @@ function closeChat() {
 }
 
 function goBack() {
+  if (selection.active()) { selection.exit(); return; }       // стрелка в режиме выделения — выход из режима
   if (history.state?.chat) history.back();   // popstate вызовет closeChat
   else closeChat();
 }
@@ -329,7 +339,7 @@ function messageActions(id) {
   const m = findMessage(id);
   if (!m) return [];
   const mine = m.sender.id === state.user.id;
-  const list = [];
+  const list = [{ icon: 'i-check', label: 'Выделить', run: () => selection.enter(id) }];
   if (m.text) list.push({ icon: 'i-copy', label: 'Копировать', run: async () => toast((await copyText(m.text)) ? 'Скопировано' : 'Не удалось скопировать') });
   if (mine && m.kind !== 'voice' && !m.meta?.sticker) {
     list.push({ icon: 'i-edit', label: 'Изменить', run: () => composer.startEdit({ id: m.id, text: m.text, allowEmpty: m.kind !== 'text' }) });
@@ -393,6 +403,20 @@ async function pickReaction(messageId, emoji) {
   } catch (e) { toast(e.message); }
 }
 
+/** Отмечает чат прочитанным (до последнего входящего сообщения) — у собеседника появятся две галочки. */
+function markRead(chat = activeChat()) {
+  if (!chat || chat.id !== state.activeChatId || document.hidden) return;
+  const items = state.history.get(chat.id)?.items ?? [];
+  const last = [...items].reverse().find((m) => m.sender.id !== state.user.id && /^\d+$/.test(String(m.id)));
+  if (!last) return;
+  chat.reads ??= {};
+  if ((chat.reads[state.user.id] ?? 0) >= last.id) return;
+  chat.reads[state.user.id] = last.id;
+  api.markRead(chat.id, last.id).catch(() => {});
+}
+document.addEventListener('visibilitychange', () => markRead());
+window.addEventListener('focus', () => markRead());
+
 /* ============================== События сервера ============================== */
 function onMessage({ message: m, client_id: clientId }) {
   const chat = state.chats.get(m.chat_id);
@@ -414,6 +438,7 @@ function onMessage({ message: m, client_id: clientId }) {
     if (!replaced && !known) appendMessage(m, chat, { forceScroll: mine });
     renderStatus(chat);
     setTyping(Boolean(state.typing.get(m.chat_id)?.size));
+    if (!mine) markRead(chat);
   }
   if (!mine) {
     if (!(active && !document.hidden)) state.unread.set(m.chat_id, (state.unread.get(m.chat_id) || 0) + 1);
@@ -470,8 +495,18 @@ socket.on('presence', ({ user_id, online, last_seen }) => {
   if (chat) renderHeader(chat);
 });
 socket.on('profile', ({ user }) => applyProfile(user));
+socket.on('read', ({ chat_id, user_id, up_to }) => {
+  const chat = state.chats.get(chat_id); if (!chat) return;
+  chat.reads = { ...(chat.reads ?? {}), [user_id]: Math.max(chat.reads?.[user_id] ?? 0, up_to) };
+  if (chat_id === state.activeChatId) refreshTicks();
+});
+socket.on('pinned', ({ chat_id, message }) => {
+  const chat = state.chats.get(chat_id); if (!chat) return;
+  chat.pinned = message;
+  if (chat_id === state.activeChatId) setPinnedBar(message);
+});
 socket.on('message_edited', ({ message }) => applyEdited(message));
-socket.on('message_deleted', (e) => applyDeleted(e));
+socket.on('message_deleted', (e) => { applyDeleted(e); const c = state.chats.get(e.chat_id); if (c?.pinned?.id === e.message_id && e.scope === 'all') { c.pinned = null; if (e.chat_id === state.activeChatId) setPinnedBar(null); } selection.prune(); });
 socket.on('reaction', ({ chat_id, message_id, reactions }) => applyReactions(chat_id, message_id, reactions));
 socket.on('chat_created', ({ chat }) => { upsertChat(chat); renderList(); });
 socket.on('error', ({ detail }) => {
@@ -521,6 +556,7 @@ const composer = initComposer({
   onAttach: () => { if (state.activeChatId) fileManager.open(); },
   onVoice: () => { if (state.activeChatId) voiceRecorder.start(); },
   onEmoji: () => picker.toggle(),
+  onDraft: (text) => { if (state.activeChatId) setDraft(state.activeChatId, text); },
 });
 
 /** Панель смайликов/стикеров/GIF: смайлик вставляется в текст, стикер и GIF уходят отдельным сообщением. */
@@ -551,11 +587,36 @@ const picker = initPicker({
 const fileManager = initFileManager({ onDeviceFile: handleFile, onPickExisting: handleExisting });
 initLightbox({ container: $('#messages'), getMessage: findMessage, onDelete: (id, mine) => removeMessage(id, mine ? 'all' : 'me') });
 const voiceRecorder = initVoiceRecorder({ onSend: sendVoice, onError: (msg) => { toast(msg); haptic.error(); } });
+const selection = initSelection({
+  container: $('#messages'),
+  getMessage: findMessage,
+  isPinned: (id) => activeChat()?.pinned?.id === id,
+  onCopy: async (list) => toast((await copyText(list.map((m) => m.text).filter(Boolean).join('\n'))) ? 'Скопировано' : 'Не удалось скопировать'),
+  onEdit: (m) => composer.startEdit({ id: m.id, text: m.text, allowEmpty: m.kind !== 'text' }),
+  onPin: (m) => pinMessage(m.id),
+  onForward: (ids) => forwardMessages(ids),
+  onDelete: async (list) => {
+    const res = await askDelete({ count: list.length, canAll: list.every((m) => m.sender.id === state.user.id) });
+    if (!res) return false;
+    await Promise.all(list.map((m) => removeMessage(m.id, res.all ? 'all' : 'me')));
+    return true;
+  },
+});
+
+async function pinMessage(id) {
+  const chat = activeChat(); if (!chat) return;
+  const unpin = chat.pinned?.id === id || id === null;
+  try { await api.pinMessage(chat.id, unpin ? null : id); } catch (e) { toast(e.message || 'Не удалось закрепить.'); }
+}
+$('#pinned-clear').addEventListener('click', () => pinMessage(null));
+$('#pinned-go').addEventListener('click', () => { const id = Number($('#pinned-bar').dataset.id); if (id && !scrollToMessage(id)) toast('Сообщение находится выше — прокрутите историю.'); });
+
 initReactions({
   container: $('#messages'),
   onPick: pickReaction,
   getQuick: () => state.user.prefs?.quick_reaction || REACTIONS[0],
   getActions: messageActions,
+  onLongSelect: (id) => selection.enter(id),
   getMine: (id) => (state.history.get(state.activeChatId)?.items.find((m) => m.id === id)?.reactions ?? [])
     .filter((r) => r.users.includes(state.user.id)).map((r) => r.emoji),
 });

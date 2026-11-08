@@ -46,7 +46,7 @@ export function closeReactionMenu() {
  *   getMine — какие эмодзи пользователь уже поставил (для подсветки в меню)
  *   getActions — действия под реакциями (копировать, изменить, удалить); confirm — текст второго нажатия
  */
-export function initReactions({ container, onPick, getMine, getActions = () => [], getQuick = null }) {
+export function initReactions({ container, onPick, getMine, getActions = () => [], getQuick = null, onLongSelect = null }) {
   function open(bubble) {
     const msg = bubble.closest('.msg');
     if (!msg || !isRealId(msg.dataset.id) || msg.classList.contains('is-pending')) return;
@@ -93,7 +93,11 @@ export function initReactions({ container, onPick, getMine, getActions = () => [
     }
   });
   // Телефон: долгое нажатие. Системное меню iOS отключено через -webkit-touch-callout: none.
-  onLongPress(container, '.msg__bubble', (bubble) => { haptic.tap(); open(bubble); });
+  onLongPress(container, '.msg__bubble', (bubble) => {
+    const msg = bubble.closest('.msg');
+    if (onLongSelect && msg && isRealId(msg.dataset.id) && !msg.classList.contains('is-pending')) { onLongSelect(Number(msg.dataset.id)); return; }   // долгое нажатие → выделение
+    haptic.tap(); open(bubble);
+  });
 
   // Клик по уже поставленной реакции — поставить/снять свою
   container.addEventListener('click', (e) => {

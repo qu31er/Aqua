@@ -4,7 +4,7 @@ import { $, el, icon } from '../dom.js';
 import { mediaUrl } from '../api.js';
 import { state } from '../state.js';
 import { toast } from './toast.js';
-import { saveToGallery, saveGif, forwardMessage, isGifMessage } from './media-actions.js';
+import { saveToGallery, saveGif, forwardMessages, isGifMessage } from './media-actions.js';
 import { openPackViewer } from './stickers.js';
 
 const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
@@ -45,7 +45,7 @@ export function initLightbox({ container, getMessage, onDelete }) {
     const list = [{ label: 'Сохранить в галерею', icon: 'i-download', run: () => saveToGallery(m.media) }];
     if (isGifMessage(m)) list.push({ label: 'Сохранить GIF', icon: 'i-gif', run: () => saveGif(m.media) });
     if (withDelete) {
-      list.push({ label: 'Переслать', icon: 'i-forward', run: () => { close(); forwardMessage(m); } });
+      list.push({ label: 'Переслать', icon: 'i-forward', run: () => { close(); forwardMessages([m.id]); } });
       list.push({ label: mine ? 'Удалить у всех' : 'Удалить у меня', icon: 'i-trash', danger: true, confirm: 'Точно удалить?', run: () => { close(); onDelete(m.id, mine); } });
     }
     return list;

@@ -701,3 +701,45 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 /* Ленты GIF, стикеров и смайликов листаются только вертикально — влево/вправо нельзя */
 .picker__gifs, .picker__feed, .picker__grid { overflow-x: hidden; touch-action: pan-y; overscroll-behavior: contain; }
 .picker__gif--saved video, .picker__gif--saved img { max-width: 100%; }
+
+/* ---------- Блок 4: статусы, пересланные, закреп, выделение, черновики ---------- */
+.msg--in .msg__meta { text-align: left; }                      /* время сообщения собеседника — в левом углу */
+.msg__ticks { display: inline-flex; vertical-align: -.2em; margin-left: .25rem; }
+.msg__ticks .icon { width: .95rem; height: .95rem; stroke-width: 2.2; }
+.msg__ticks.is-pending .icon { width: .8rem; height: .8rem; }
+.msg__ticks.is-read .icon { stroke: var(--aqua-teal-400, #7be0e6); }
+.msg--out .msg__ticks .icon { stroke: currentColor; }
+.msg--out .msg__ticks.is-read .icon { stroke: #8ff3ff; }
+.msg__fwd { margin: 0 0 .2rem; font-size: var(--fs-xs); font-weight: 600; color: var(--aqua-teal-600); }
+.msg--out .msg__fwd { color: rgba(255,255,255,.85); }
+.msg--sticker .msg__fwd { display: none; }
+.chat-item__draft { color: #d64545; font-weight: 600; }
+.msg.is-flash .msg__bubble { animation: flash 1.2s ease; }
+@keyframes flash { 30% { box-shadow: 0 0 0 .3rem var(--color-focus); } }
+
+.pinned { display: flex; align-items: center; gap: .5rem; padding: .25rem .5rem .25rem .9rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.pinned[hidden] { display: none; }
+.pinned > .icon { flex: none; width: 1.2rem; height: 1.2rem; stroke: var(--aqua-teal); }
+.pinned__body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; border: 0; background: transparent; padding: .1rem 0; font: inherit; color: var(--color-text); text-align: left; cursor: pointer; border-left: 2px solid var(--aqua-teal); padding-left: .5rem; }
+.pinned__body b { font-size: var(--fs-xs); color: var(--aqua-teal-600); }
+.pinned__body span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+
+.sel__title { flex: 1; margin: 0; font-size: 1.05rem; font-weight: 700; }
+.sel__title[hidden], .chat__peer[hidden] { display: none; }
+.selbar { display: flex; justify-content: space-around; gap: .25rem; padding: .35rem .5rem calc(.35rem + var(--safe-bottom)); background: var(--color-surface); border-top: 1px solid var(--color-border); }
+.selbar[hidden] { display: none; }
+.selbar__btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .15rem; padding: .35rem .2rem; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); font: inherit; font-size: .7rem; cursor: pointer; }
+.selbar__btn[hidden] { display: none; }
+.selbar__btn:hover { background: var(--aqua-100); }
+.selbar__btn .icon { width: 1.4rem; height: 1.4rem; }
+.selbar__btn.is-danger { color: #c0392b; }
+.selbar__btn.is-danger .icon { stroke: #c0392b; }
+#app[data-selecting="true"] .msg { cursor: pointer; }
+.msg.is-selected { background: color-mix(in srgb, var(--aqua-teal) 18%, transparent); border-radius: .75rem; box-shadow: -.5rem 0 0 color-mix(in srgb, var(--aqua-teal) 18%, transparent), .5rem 0 0 color-mix(in srgb, var(--aqua-teal) 18%, transparent); }
+.msg.is-selected .msg__bubble { outline: 2px solid var(--aqua-teal); outline-offset: 1px; }
+
+.check { display: flex; align-items: center; gap: .6rem; padding: .6rem 1rem; font-size: var(--fs-sm); cursor: pointer; }
+.check input { width: 1.15rem; height: 1.15rem; accent-color: var(--aqua-teal); }
+.dialog .check { padding: 0; }
+.dialog__hint { margin: 0; color: var(--color-text-muted); font-size: var(--fs-sm); }
+.btn--danger { background: #c0392b; color: #fff; }

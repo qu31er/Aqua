@@ -3,7 +3,7 @@ import { $, el } from '../dom.js';
 import { api, mediaUrl } from '../api.js';
 import { state, peerOf } from '../state.js';
 import { avatar } from './avatar.js';
-import { openModal, closeModal } from './modal.js';
+import { openModal, closeModal, onModalClose } from './modal.js';
 import { toast } from './toast.js';
 
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
@@ -35,22 +35,25 @@ export async function saveGif(media) {
 
 export const isGifMessage = (m) => Boolean(m.meta?.gif) || m.media?.mime === 'image/gif';
 
-/** Выбор чата и отправка копии файла. */
-export function forwardMessage(m) {
-  const list = $('#forward-list');
-  const chats = [...state.chats.values()];
-  list.replaceChildren(...(chats.length ? chats.map((c) => {
-    const peer = c.type === 'direct' ? peerOf(c) : null;
-    const title = c.type === 'direct' ? (peer?.display_name || peer?.username || 'Чат') : c.title;
-    return el('li', {}, el('button', { type: 'button', class: 'contacts__row', onclick: async () => {
-      closeModal('modal-forward');
-      try {
-        const media = m.media?.id ? await api.cloneMedia(m.media.id) : null;
-        if (!media) return;
-        await api.sendMessage(c.id, null, media.id, m.meta?.gif ? { gif: true } : null, null);
-        toast(`Отправлено: ${title}`);
-      } catch (e) { toast(e.message || 'Не удалось переслать.'); }
-    } }, avatar(title, { user: peer }), el('span', { class: 'contacts__name' }, el('b', { text: title }))));
-  }) : [el('li', { class: 'contacts__empty', text: 'Чатов пока нет.' })]));
-  openModal('modal-forward');
+/** Выбор чата и пересылка сообщений (опционально — без «Переслано от …»). @returns {Promise<boolean>} переслано ли */
+export function forwardMessages(ids) {
+  return new Promise((resolve) => {
+    const list = $('#forward-list');
+    $('#forward-hide').checked = false;
+    const chats = [...state.chats.values()];
+    let done = false, chosen = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    list.replaceChildren(...(chats.length ? chats.map((c) => {
+      const peer = c.type === 'direct' ? peerOf(c) : null;
+      return el('li', {}, el('button', { type: 'button', class: 'contacts__row', onclick: async () => {
+        const hide = $('#forward-hide').checked;
+        chosen = true;
+        closeModal('modal-forward');
+        try { await api.forward(ids, c.id, hide); toast(`Отправлено: ${c.title}`); finish(true); }
+        catch (e) { toast(e.message || 'Не удалось переслать.'); finish(false); }
+      } }, avatar(c.title, { user: peer }), el('span', { class: 'contacts__name' }, el('b', { text: c.title }))));
+    }) : [el('li', { class: 'contacts__empty', text: 'Чатов пока нет.' })]));
+    onModalClose('modal-forward', () => { if (!chosen) finish(false); });
+    openModal('modal-forward');
+  });
 }

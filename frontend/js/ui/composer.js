@@ -8,7 +8,7 @@ const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
 /**
  * @param {{onSend:(text:string)=>void, onTyping:(isTyping:boolean)=>void, onAttach:()=>void, onVoice:()=>void, onEmoji:()=>void}} h
  */
-export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEmoji }) {
+export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEmoji, onDraft = () => {} }) {
   const form = $('#composer');
   const input = $('#message-input');
   const sendBtn = $('#btn-send');
@@ -32,6 +32,7 @@ export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEm
 
   input.addEventListener('input', () => {
     autosize();
+    if (!editing) onDraft(input.value);
     if (!input.value.trim()) { stopTyping(); return; }
     const now = Date.now();
     // Шлём «печатает» не чаще раза в TYPING_THROTTLE_MS, а «перестал» — после паузы
@@ -71,6 +72,7 @@ export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEm
     setTimeout(() => sendBtn.classList.remove('is-animating'), 600);
     input.value = '';
     autosize();
+    onDraft('');
     input.focus();
   });
 
@@ -94,6 +96,9 @@ export function initComposer({ onSend, onEdit, onTyping, onAttach, onVoice, onEm
       input.setRangeText(text, a, b, 'end');
       input.dispatchEvent(new Event('input', { bubbles: true }));
     },
+    /** Текст в поле (для черновиков). Событие не вызываем — черновик не перезаписывается самим собой. */
+    getText: () => (editing ? '' : input.value),
+    setText(text) { editing = null; bar.hidden = true; input.value = text || ''; autosize(); },
     /** Значок кнопки справа от поля: 'smile' или 'gif' (запоминаемая вкладка пикера). */
     setPickerIcon(tab) {
       $('#btn-emoji use').setAttribute('href', tab === 'gif' ? '#i-gif' : tab === 'stickers' ? '#i-sticker' : '#i-smile');

@@ -28,7 +28,7 @@ const URL = 'http://127.0.0.1:8765/index.html';
 
   /* ---- меню своего сообщения ---- */
   await open(await myMsg());
-  ok(JSON.stringify(await labels()) === JSON.stringify(['Копировать', 'Изменить', 'Удалить у меня', 'Удалить у всех']), 'своё сообщение: копировать / изменить / удалить у меня / у всех');
+  ok(JSON.stringify(await labels()) === JSON.stringify(['Выделить', 'Копировать', 'Изменить', 'Удалить у меня', 'Удалить у всех']), 'своё сообщение: копировать / изменить / удалить у меня / у всех');
   await page.screenshot({ path: 'tests/shots/msgops-menu.png' });
 
   /* ---- копирование ---- */
@@ -59,7 +59,7 @@ const URL = 'http://127.0.0.1:8765/index.html';
   /* ---- чужое сообщение: нельзя менять и удалять у всех ---- */
   const theirs = page.locator('#messages .msg--in .msg__text').last();
   await open(theirs);
-  ok(JSON.stringify(await labels()) === JSON.stringify(['Копировать', 'Удалить у меня']), 'чужое сообщение: только копировать и удалить у меня');
+  ok(JSON.stringify(await labels()) === JSON.stringify(['Выделить', 'Копировать', 'Удалить у меня']), 'чужое сообщение: только копировать и удалить у меня');
   await page.keyboard.press('Escape');
 
   /* ---- удалить у себя (чужое) ---- */

@@ -31,8 +31,8 @@ function makeBackend() {
   const hidden = new Set();                           // «удалено у себя»
   const lastOf = (c) => msgs[c].filter((x) => !hidden.has(x.id)).at(-1) || null;
   const chats = () => [
-    { id: 1, type: 'direct', title: 'bob', created_at: iso(9999), members: [me, bob], last_message: lastOf(1) },
-    { id: 2, type: 'direct', title: 'carl', created_at: iso(9999), members: [me, carl], last_message: lastOf(2) }];
+    { id: 1, type: 'direct', title: 'bob', created_at: iso(9999), members: [me, bob], last_message: lastOf(1), reads: reads[1], pinned: pinned[1] ?? null },
+    { id: 2, type: 'direct', title: 'carl', created_at: iso(9999), members: [me, carl], last_message: lastOf(2), reads: reads[2], pinned: pinned[2] ?? null }];
   const toggle = (id, emoji, userId) => {
     const r = (reactions[id] ??= {}); const u = (r[emoji] ??= []);
     // одна реакция на пользователя: другая заменяет прежнюю, та же — снимает
@@ -42,9 +42,10 @@ function makeBackend() {
     const m = Object.values(msgs).flat().find((x) => x.id === id); if (m) m.reactions = reactionsOf(id);
     return reactionsOf(id);
   };
+  const reads = { 1: { 1: 0, 2: 0 }, 2: { 1: 0, 3: 0 } }, pinned = {};
   const stk = { packs: [], recent: [], favs: [], added: new Set(), sid: 0, pid: 0 };
   const savedGifs = [];
-  return { stk, savedGifs, hidden, me, bob, carl, msgs, media, chats, add, toggle, reactionsOf, reqs: [], deleted: [], wsIn: [], uploads: [],
+  return { reads, pinned, stk, savedGifs, hidden, me, bob, carl, msgs, media, chats, add, toggle, reactionsOf, reqs: [], deleted: [], wsIn: [], uploads: [],
     newMedia: (o) => (media[++mediaId] = { id: mediaId, ...o }) };
 }
 
@@ -181,6 +182,16 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
       const { bytes, ...pub } = rec;
       return json(201, { ...pub, url: `/api/media/${rec.id}` });
     }
+    if ((m = path.match(/^\/chats\/(\d+)\/read$/)) && req.method() === 'POST') { const up = req.postDataJSON().up_to; (be.readCalls ??= []).push([+m[1], up]); be.reads[+m[1]][1] = Math.max(be.reads[+m[1]][1], up); return json(200, { chat_id: +m[1], up_to: up }); }
+    if ((m = path.match(/^\/chats\/(\d+)\/pin$/)) && req.method() === 'PUT') {
+      const id = req.postDataJSON().message_id; const msg = id ? be.msgs[+m[1]].find((x) => x.id === id) : null; be.pinned[+m[1]] = msg ?? null;
+      setTimeout(() => push({ type: 'pinned', chat_id: +m[1], message: msg ?? null }), 20); return json(200, { chat_id: +m[1], message: msg ?? null }); }
+    if (path === '/messages/forward' && req.method() === 'POST') {
+      const d = req.postDataJSON(); (be.forwards ??= []).push(d);
+      const out = d.message_ids.map((id) => { const src = Object.values(be.msgs).flat().find((x) => x.id === id);
+        const nm = be.add(d.chat_id, be.me, src.text, 0, { forwarded: d.hide_sender ? null : { id: src.sender.id, name: src.sender.username } });
+        setTimeout(() => push({ type: 'message', message: nm }), 20); return nm; });
+      return json(201, out); }
     const pub = (id) => { const { bytes, ...x } = be.media[id]; return { ...x, url: `/api/media/${id}` }; };
     const sj = (st) => ({ id: st.id, pack_id: st.pack_id, media_id: st.media_id, url: `/api/media/${st.media_id}` });
     const pj = (p) => ({ id: p.id, title: p.title, owner_id: 1, own: true, added: be.stk.added.has(p.id), preview: p.stickers[0] ? sj(p.stickers[0]) : null, stickers: p.stickers.map(sj) });

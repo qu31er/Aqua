@@ -164,6 +164,9 @@ def serialize_chat(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> di
         "created_at": chat["created_at"],
         "members": [serialize_user(m) for m in members],
         "last_message": get_message(conn, last["id"]) if last else None,
+        "reads": {r["user_id"]: r["last_read_id"] for r in conn.execute(
+            "SELECT user_id, last_read_id FROM chat_members WHERE chat_id = ?", (chat_id,))},
+        "pinned": get_message(conn, chat["pinned_id"]) if chat["pinned_id"] else None,
     }
 
 
@@ -234,7 +237,7 @@ def create_group_chat(
 _MESSAGE_SELECT = """
     SELECT m.id, m.chat_id, m.sender_id, u.username AS sender_username,
            u.display_name AS sender_display, u.avatar_id AS sender_avatar, u.avatar_preset AS sender_preset, m.kind, m.text,
-           m.media_id, m.meta, m.cover_id, m.created_at, m.edited_at, md.original_name, md.mime, md.size
+           m.media_id, m.meta, m.cover_id, m.created_at, m.edited_at, m.fwd, md.original_name, md.mime, md.size
     FROM messages m
     JOIN users u ON u.id = m.sender_id
     LEFT JOIN media md ON md.id = m.media_id
@@ -265,6 +268,7 @@ def serialize_message(row: sqlite3.Row) -> dict:
         "reactions": [],                                            # заполняет attach_reactions
         "created_at": row["created_at"],
         "edited_at": row["edited_at"],
+        "forwarded": json.loads(row["fwd"]) if row["fwd"] else None,   # {id, name} — «Переслано от …»
     }
 
 
@@ -524,6 +528,7 @@ def delete_message(conn: sqlite3.Connection, message_id: int, user_id: int, scop
         if row["sender_id"] != user_id:
             raise ServiceError(403, "Удалить у всех можно только свои сообщения.")
         conn.execute("DELETE FROM messages WHERE id = ?", (message_id,))      # реакции и «скрытия» уйдут каскадом
+        conn.execute("UPDATE chats SET pinned_id = NULL WHERE pinned_id = ?", (message_id,))
     elif scope == "me":
         conn.execute("INSERT OR IGNORE INTO message_hidden (message_id, user_id) VALUES (?, ?)", (message_id, user_id))
     else:
@@ -610,3 +615,53 @@ def sticker_library(conn: sqlite3.Connection, user_id: int) -> dict:
         "SELECT s.* FROM sticker_favs f JOIN stickers s ON s.id = f.sticker_id WHERE f.user_id = ? ORDER BY f.added_at DESC, f.rowid DESC", (user_id,)).fetchall()
     return {"packs": [serialize_pack(conn, p, user_id) for p in packs],
             "recent": [_sticker_json(r) for r in recent], "favorites": [_sticker_json(r) for r in favs]}
+
+
+# --- Прочитанность, закреп, пересылка ---------------------------------------------
+def mark_read(conn: sqlite3.Connection, chat_id: int, user_id: int, up_to: int) -> int:
+    """Отмечает сообщения чата прочитанными до up_to включительно (не может уменьшиться). Возвращает новое значение."""
+    require_member(conn, chat_id, user_id)
+    top = conn.execute("SELECT COALESCE(MAX(id), 0) FROM messages WHERE chat_id = ? AND id <= ?", (chat_id, up_to)).fetchone()[0]
+    conn.execute("UPDATE chat_members SET last_read_id = MAX(last_read_id, ?) WHERE chat_id = ? AND user_id = ?", (top, chat_id, user_id))
+    return conn.execute("SELECT last_read_id FROM chat_members WHERE chat_id = ? AND user_id = ?", (chat_id, user_id)).fetchone()[0]
+
+
+def set_pinned(conn: sqlite3.Connection, chat_id: int, user_id: int, message_id: int | None) -> dict | None:
+    require_member(conn, chat_id, user_id)
+    if message_id is not None:
+        row = conn.execute("SELECT 1 FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)).fetchone()
+        if row is None:
+            raise ServiceError(404, "Сообщение не найдено.")
+    conn.execute("UPDATE chats SET pinned_id = ? WHERE id = ?", (message_id, chat_id))
+    return get_message(conn, message_id) if message_id else None
+
+
+def forward_messages(conn: sqlite3.Connection, user_id: int, message_ids: list[int], chat_id: int, hide_sender: bool) -> list[dict]:
+    """Пересылает сообщения в чат: файлы копируются пользователю; «Переслано от …» можно скрыть."""
+    require_member(conn, chat_id, user_id)
+    out = []
+    for mid in sorted(set(message_ids)):
+        src = conn.execute("SELECT * FROM messages WHERE id = ?", (mid,)).fetchone()
+        if src is None:
+            raise ServiceError(404, "Сообщение не найдено.")
+        require_member(conn, src["chat_id"], user_id)
+        if conn.execute("SELECT 1 FROM message_hidden WHERE message_id = ? AND user_id = ?", (mid, user_id)).fetchone():
+            raise ServiceError(404, "Сообщение не найдено.")
+        meta = json.loads(src["meta"]) if src["meta"] else None
+        media_id = cover_id = None
+        if src["media_id"] is not None:
+            media_id = src["media_id"] if (meta and "sticker" in meta) else clone_media(conn, src["media_id"], user_id)["id"]
+        if src["cover_id"] is not None:
+            cover_id = clone_media(conn, src["cover_id"], user_id)["id"]
+        if meta and "pack" in meta:
+            meta = {"sticker": meta["sticker"]}
+        msg = create_message(conn, chat_id, user_id, src["text"], media_id, meta, cover_id)
+        if not hide_sender:
+            fwd = json.loads(src["fwd"]) if src["fwd"] else None
+            if fwd is None:
+                u = conn.execute("SELECT username, display_name FROM users WHERE id = ?", (src["sender_id"],)).fetchone()
+                fwd = {"id": src["sender_id"], "name": u["display_name"] or u["username"]}
+            conn.execute("UPDATE messages SET fwd = ? WHERE id = ?", (json.dumps(fwd, ensure_ascii=False), msg["id"]))
+            msg = get_message(conn, msg["id"])
+        out.append(msg)
+    return out

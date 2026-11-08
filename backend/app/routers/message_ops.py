@@ -52,3 +52,24 @@ async def delete_message(message_id: int, scope: Literal["all", "me"] = Query("m
             "last_message": services.last_message_for(conn, chat_id, uid),
         })
     return {"ok": True, "chat_id": chat_id, "message_id": message_id, "scope": scope}
+
+
+class ForwardIn(BaseModel):
+    message_ids: list[int] = Field(min_length=1, max_length=100)
+    chat_id: int
+    hide_sender: bool = False
+
+
+@router.post("/forward", status_code=201)
+async def forward(data: ForwardIn, user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Переслать сообщения в чат. hide_sender — без подписи «Переслано от …»."""
+    try:
+        messages = services.forward_messages(conn, user["id"], data.message_ids, data.chat_id, data.hide_sender)
+    except ServiceError as e:
+        raise HTTPException(e.status, e.message)
+    conn.commit()
+    recipients = services.member_ids(conn, data.chat_id)
+    for m in messages:
+        for uid in recipients:
+            await manager.send_to_user(uid, {"type": "message", "message": m})
+    return messages

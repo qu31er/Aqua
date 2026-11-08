@@ -207,6 +207,15 @@ def init_db(path: Path = DB_PATH) -> None:
             conn.execute("ALTER TABLE messages ADD COLUMN edited_at TEXT")
         if "cover_id" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN cover_id INTEGER REFERENCES media(id) ON DELETE SET NULL")
+        # Блок 4: пересланные, закреплённое сообщение, прочитанность
+        if "fwd" not in cols:
+            conn.execute("ALTER TABLE messages ADD COLUMN fwd TEXT")
+        ccols = {r["name"] for r in conn.execute("PRAGMA table_info(chats)")}
+        if "pinned_id" not in ccols:
+            conn.execute("ALTER TABLE chats ADD COLUMN pinned_id INTEGER")
+        mcols = {r["name"] for r in conn.execute("PRAGMA table_info(chat_members)")}
+        if "last_read_id" not in mcols:
+            conn.execute("ALTER TABLE chat_members ADD COLUMN last_read_id INTEGER NOT NULL DEFAULT 0")
         # Миграция Этапа 6: поля профиля
         ucols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
         for col, ddl in (("display_name", "TEXT"), ("bio", "TEXT"),

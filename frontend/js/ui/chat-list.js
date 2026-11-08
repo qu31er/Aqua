@@ -1,4 +1,5 @@
 /* Боковая панель: список чатов, поиск, результаты поиска пользователей. */
+import { getDraft } from '../drafts.js';
 import { $, el } from '../dom.js';
 import { state, peerOf } from '../state.js';
 import { avatar } from './avatar.js';
@@ -21,6 +22,13 @@ function typingLabel(chat) {
   return chat.type === 'group' ? `${[...typers.values()][0].username} печатает…` : 'печатает…';
 }
 
+/** «Черновик: текст» — вместо последнего сообщения, если в чате что-то набрано и не отправлено. */
+function draftPreview(chat, typing) {
+  const d = typing ? '' : getDraft(chat.id).trim();
+  if (!d) return null;
+  return el('span', { class: 'chat-item__preview' }, el('span', { class: 'chat-item__draft', text: 'Черновик: ' }), d.replace(/\s+/g, ' ').slice(0, 80));
+}
+
 function chatItem(chat) {
   const peer = peerOf(chat);
   const unread = state.unread.get(chat.id) || 0;
@@ -36,7 +44,7 @@ function chatItem(chat) {
           el('span', { class: 'chat-item__name', text: chat.title }),
           el('span', { class: 'chat-item__time', text: listTime(chat.last_message?.created_at) })),
         el('span', { class: 'chat-item__row' },
-          el('span', { class: `chat-item__preview${typing ? ' is-typing' : ''}`, text: typing || previewText(chat) }),
+          draftPreview(chat, typing) ?? el('span', { class: `chat-item__preview${typing ? ' is-typing' : ''}`, text: typing || previewText(chat) }),
           unread ? el('span', { class: 'badge', text: unread > 99 ? '99+' : unread }) : null)),
     ));
 }

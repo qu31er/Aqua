@@ -84,8 +84,8 @@ const URL = 'http://127.0.0.1:8765/index.html';
   /* ---- Тап по стикеру в чате → окно пака ---- */
   await page.keyboard.press('Escape');
   await page.locator('#messages .msg__sticker').last().click();
-  await page.waitForSelector('#modal-pack.is-open');
-  ok(await page.locator('#pack-title').textContent() === 'Мои коты' && await page.locator('#pack-grid .pack-grid__item').count() === 2, 'окно пака: название и все стикеры');
+  await page.waitForSelector('#modal-pack.is-open'); await page.waitForSelector('#pack-grid .pack-grid__item');
+  ok(await page.locator('#pack-title').textContent() === 'Мои коты' && await page.locator('#pack-grid .pack-grid__item').count() === 2 || console.log(await page.locator('#pack-title').textContent(), await page.locator('#pack-grid .pack-grid__item').count()), 'окно пака: название и все стикеры');
   ok(/ваш/.test(await page.locator('#pack-add').textContent()), 'для своего пака кнопка неактивна');
   await page.keyboard.press('Escape');
 
@@ -119,7 +119,7 @@ const URL = 'http://127.0.0.1:8765/index.html';
   await page.waitForSelector('#modal-forward.is-open');
   await page.locator('#forward-list button').nth(1).click();
   await page.waitForTimeout(200);
-  ok(be.clones?.length === 1, 'пересылка копирует файл и отправляет');
+  ok(be.forwards?.length === 1 && be.forwards[0].chat_id === 2, 'пересылка из просмотра: сообщение ушло в выбранный чат');
   await page.waitForFunction(() => !document.querySelector('.lb'));
   ok(true, 'просмотр закрылся после пересылки');
 

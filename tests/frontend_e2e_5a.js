@@ -83,9 +83,12 @@ const login = async (page) => { await page.addInitScript(() => localStorage.setI
     el.dispatchEvent(new TouchEvent('touchstart', { touches: [t], changedTouches: [t], bubbles: true }));
   });
   await page.waitForTimeout(250);
-  ok(await page.locator('.menu').count() === 0, 'телефон: до 450 мс меню не открывается');
+  ok(await page.locator('#sel-title').isHidden(), 'телефон: до 450 мс выделение не включается');
   await page.waitForTimeout(400);
-  ok(await page.locator('.menu').isVisible(), 'телефон: долгое нажатие открывает меню');
+  ok(await page.locator('#sel-title').isVisible(), 'телефон: долгое нажатие включает режим выделения');
+  await page.evaluate(() => document.querySelector('#btn-back').click());
+  await page.evaluate(() => { const el = [...document.querySelectorAll('#messages .msg--in .msg__bubble')].at(-1); el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); });
+  await page.waitForSelector('.menu'); await page.waitForTimeout(500);
   const mb = await page.locator('.menu').boundingBox();
   ok(Math.abs(mb.y + mb.height - 780) < 2 && mb.width >= 389, 'телефон: меню — шторка во всю ширину у нижнего края');
   ok((await page.evaluate(() => window.__vib)).length > 0, 'телефон: вибрация при долгом нажатии');
