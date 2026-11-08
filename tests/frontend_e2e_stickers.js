@@ -97,6 +97,7 @@ const URL = 'http://127.0.0.1:8765/index.html';
   await page.click('#btn-emoji'); await page.fill('#gif-search', '');
   await page.waitForSelector('.picker__gif--saved');
   ok(await page.locator('.picker__gif--saved').count() === 1, 'отправленная GIF в «Сохранённых»');
+  ok(await page.locator('#gif-grid').evaluate((g) => { const c = getComputedStyle(g); return c.overflowX === 'hidden' && c.overflowY === 'auto' && c.touchAction === 'pan-y' && g.scrollWidth <= g.clientWidth; }), 'GIF листаются только вертикально (по горизонтали прокрутки нет)');
   await page.keyboard.press('Escape');
 
   /* ---- Меню ⋮ у медиа и просмотр на весь экран ---- */
