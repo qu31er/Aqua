@@ -39,6 +39,7 @@ import { initSelection } from './ui/selection.js';
 import { forwardMessages } from './ui/media-actions.js';
 import { askDelete } from './ui/dialogs.js';
 import { getDraft, setDraft } from './drafts.js';
+import { initNotifications, askPermissionOnEntry, notifyMessage } from './notify.js';
 import { rememberAccount, forgetAccount, listAccounts, switchAccount, startAddAccount, hasPrevSession, cancelAddAccount, clearPrev } from './accounts.js';
 import { openEditor } from './editor/editor-modal.js';
 
@@ -113,6 +114,8 @@ async function enterApp(user) {
   await loadChats();                            // сначала данные, потом экран — без мигания пустого списка
   showScreen('chat');
   socket.connect();
+  initNotifications((id) => { if (state.chats.has(id)) openChat(id); });
+  askPermissionOnEntry();                       // при входе обязательно спрашиваем разрешение на уведомления
 }
 
 function logout(message) {
@@ -450,6 +453,7 @@ function onMessage({ message: m, client_id: clientId }) {
   if (!mine) {
     if (!(active && !document.hidden)) state.unread.set(m.chat_id, (state.unread.get(m.chat_id) || 0) + 1);
     haptic.receive();
+    if (document.hidden || !active) notifyMessage(m, chat, (id) => openChat(id));
   }
   renderList();
 }

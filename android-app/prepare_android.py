@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "android/app/src/main/AndroidManifest.xml"
 RES = ROOT / "android/app/src/main/res"
 ICON = ROOT.parent / "frontend/assets/icon-512.png"
-PERMS = ["android.permission.INTERNET", "android.permission.RECORD_AUDIO", "android.permission.MODIFY_AUDIO_SETTINGS"]
+PERMS = ["android.permission.INTERNET", "android.permission.RECORD_AUDIO", "android.permission.MODIFY_AUDIO_SETTINGS",
+         "android.permission.POST_NOTIFICATIONS"]
 
 
 def patch_manifest() -> None:
