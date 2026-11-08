@@ -174,8 +174,10 @@
   font-size: calc(var(--fs-md) * var(--msg-scale, 1));
   box-shadow: var(--shadow-sm);
   overflow-wrap: anywhere;
-  -webkit-user-select: text; user-select: text;
+  -webkit-user-select: none; user-select: none;   /* текст выделяется только у выделенного сообщения (см. .is-selected) */
   -webkit-touch-callout: none;                    /* iOS: свой длинный тап вместо системного меню */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .msg--in  .msg__bubble { background: var(--bubble-in-bg);  color: var(--bubble-in-text);  border-bottom-left-radius: min(.3rem, var(--bubble-radius, .3rem)); }
 .msg--out .msg__bubble { background: var(--bubble-out-bg); color: var(--bubble-out-text); border-bottom-right-radius: min(.3rem, var(--bubble-radius, .3rem)); }
@@ -734,9 +736,21 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .selbar__btn .icon { width: 1.4rem; height: 1.4rem; }
 .selbar__btn.is-danger { color: #c0392b; }
 .selbar__btn.is-danger .icon { stroke: #c0392b; }
-#app[data-selecting="true"] .msg { cursor: pointer; }
-.msg.is-selected { background: color-mix(in srgb, var(--aqua-teal) 18%, transparent); border-radius: .75rem; box-shadow: -.5rem 0 0 color-mix(in srgb, var(--aqua-teal) 18%, transparent), .5rem 0 0 color-mix(in srgb, var(--aqua-teal) 18%, transparent); }
-.msg.is-selected .msg__bubble { outline: 2px solid var(--aqua-teal); outline-offset: 1px; }
+/* Выделение как в Telegram: полоса на всю ширину чата + кружок с галочкой слева */
+#app[data-selecting="true"] .chat__messages { padding-left: 2.6rem; overflow-x: hidden; }
+#app[data-selecting="true"] .msg { cursor: pointer; align-self: stretch; max-width: none; position: relative; }
+#app[data-selecting="true"] .msg > * { max-width: min(85%, 32rem); position: relative; z-index: 1; }
+#app[data-selecting="true"] .msg--in { align-items: flex-start; }
+#app[data-selecting="true"] .msg::after {
+  content: ''; position: absolute; left: -2rem; top: 50%; width: 1.3rem; height: 1.3rem; margin-top: -.65rem; z-index: 1;
+  box-sizing: border-box; border: .125rem solid var(--color-text-muted); border-radius: 50%; background: transparent;
+  transition: background-color var(--dur-fast), border-color var(--dur-fast);
+}
+.msg.is-selected::before { content: ''; position: absolute; top: -.2rem; bottom: -.2rem; left: -100vw; right: -100vw; z-index: 0; pointer-events: none;
+  background: color-mix(in srgb, var(--aqua-teal) 22%, transparent); }
+#app .msg.is-selected::after { background: var(--aqua-teal) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 80% no-repeat; border-color: var(--aqua-teal); }
+.msg.is-selected .msg__text { -webkit-user-select: text; user-select: text; }
+.msg__meta, .msg__ticks, .msg__author, .reaction { -webkit-user-select: none; user-select: none; }
 
 .check { display: flex; align-items: center; gap: .6rem; padding: .6rem 1rem; font-size: var(--fs-sm); cursor: pointer; }
 .check input { width: 1.15rem; height: 1.15rem; accent-color: var(--aqua-teal); }
@@ -772,3 +786,13 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .accs__row > .icon { stroke: var(--aqua-teal); }
 .auth__cancel { display: block; margin: 1rem auto 0; border: 0; background: transparent; color: var(--color-primary); font: inherit; font-weight: 600; cursor: pointer; }
 .auth__cancel[hidden] { display: none; }
+
+/* Удобство на телефонах */
+@media (pointer: coarse) {
+  html { -webkit-text-size-adjust: 100%; }
+  .btn-icon, .selbar__btn, .nav__item { min-width: 2.75rem; min-height: 2.75rem; }
+  .chat-item, .accs__row, .pick__row { min-height: 3.5rem; }
+  .chat__messages { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .msg__bubble { padding: .45rem .7rem .35rem; }
+  input, textarea, select { font-size: max(16px, 1em); }   /* iOS не приближает страницу при фокусе */
+}
