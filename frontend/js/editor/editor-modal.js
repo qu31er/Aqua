@@ -41,7 +41,7 @@ function wire() {
           onProgress: (p) => { $('#editor-busy-text').textContent = `Обрезаем видео… ${Math.round(p * 100)}%`; },
         });
         if (r.warning) toast(r.warning);
-        result = { file: r.file, cover: r.cover };
+        result = { file: r.file, cover: r.cover, gif: Boolean(r.gif) };
       }
       finish({ ...result, caption: $('#editor-caption').value.trim() });
     } catch (e) {

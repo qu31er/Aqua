@@ -24,11 +24,12 @@ const once = (target, ok, bad = 'error') => new Promise((resolve, reject) => {
  * @param {{onProgress?:(ratio:number)=>void, signal?:AbortSignal}} opts
  * @returns {Promise<File>}
  */
-export async function trimVideo(file, start, end, { onProgress, signal } = {}) {
+export async function trimVideo(file, start, end, { onProgress, signal, mute = false } = {}) {
   if (!canTrim()) throw new Error('Этот браузер не умеет обрезать видео.');
   const url = URL.createObjectURL(file);
   const v = document.createElement('video');
   v.playsInline = true; v.preload = 'auto'; v.src = url;
+  if (mute) v.muted = true;                                                    // «без звука» — дорожку звука не записываем вовсе
   let audioCtx = null, timer = null, recorder = null;
 
   const cleanup = () => {
@@ -49,7 +50,7 @@ export async function trimVideo(file, start, end, { onProgress, signal } = {}) {
     const ctx = canvas.getContext('2d');
 
     stream = canvas.captureStream(30);
-    try {                                                                      // звук: через Web Audio, не в динамики
+    if (!mute) try {                                                           // звук: через Web Audio, не в динамики
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const dest = audioCtx.createMediaStreamDestination();
       audioCtx.createMediaElementSource(v).connect(dest);

@@ -696,3 +696,4 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .lb .menu { z-index: 5; }
 /* Запасной «альбомный режим», когда браузер не даёт заблокировать ориентацию: поворачиваем интерфейс сами */
 .lb--rotated { inset: auto; top: 0; left: 100%; width: 100vh; height: 100vw; transform-origin: top left; transform: rotate(90deg); }
+.msg__mediawrap { min-height: 2.6rem; }

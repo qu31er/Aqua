@@ -41,7 +41,7 @@ const login = async (page) => { await page.addInitScript(() => localStorage.setI
   const target = page.locator('#messages .msg--in .msg__bubble').last();
   await target.click({ button: 'right' });
   ok(await page.locator('.menu').isVisible(), 'ПКМ по сообщению открывает меню реакций');
-  ok(await page.locator('.menu .menu__item').count() === 8, 'в меню 8 реакций');
+  ok(await page.locator('.menu .menu__item').count() === 12, 'в меню 12 реакций (с негативными)');
   const box = await page.locator('.menu').boundingBox(), tb = await target.boundingBox();
   ok(box.y + box.height <= tb.y + 1 && box.x >= 0 && box.x + box.width <= 1280, 'меню над сообщением и в пределах окна');
   await page.screenshot({ path: OUT + '5a-menu-desktop.png' });
@@ -53,7 +53,7 @@ const login = async (page) => { await page.addInitScript(() => localStorage.setI
   await page.waitForSelector('#messages .msg--in .reaction');
   ok(be.reqs.includes('PUT /messages/122/reactions') || be.reqs.some((r) => /PUT \/messages\/\d+\/reactions/.test(r)), 'реакция отправлена на сервер (PUT)');
   const chip = page.locator('#messages .msg--in').last().locator('.reaction');
-  ok((await chip.textContent()).includes('🔥') && (await chip.textContent()).includes('1'), 'чип 🔥 1 под сообщением');
+  ok((await chip.textContent()).includes('🔥') && await chip.locator('.avatar').count() === 1, 'чип 🔥 с аватаркой под сообщением (в личном чате вместо цифры)');
   ok((await chip.getAttribute('class')).includes('is-mine'), 'своя реакция подсвечена');
   await page.waitForTimeout(100);
   ok(await page.locator('#messages .msg--in').last().locator('.reaction').count() === 1, 'после события сервера чип не дублируется');
@@ -61,7 +61,7 @@ const login = async (page) => { await page.addInitScript(() => localStorage.setI
   t.push({ type: 'reaction', chat_id: 1, message_id: msgId, reactions: [{ emoji: '🔥', count: 2, users: [1, 2] }, { emoji: '👍', count: 1, users: [2] }] });
   await page.waitForTimeout(100);
   ok(await page.locator('#messages .msg--in').last().locator('.reaction').count() === 2, 'WS: чужая реакция появилась мгновенно');
-  ok((await page.locator('#messages .msg--in').last().locator('.reaction').first().textContent()).includes('2'), 'WS: счётчик обновился до 2');
+  ok(await page.locator('#messages .msg--in').last().locator('.reaction').first().locator('.avatar').count() === 2, 'WS: у реакции две аватарки');
   await target.click({ button: 'right' });
   ok(await page.locator('.menu .menu__item.is-active').count() === 1, 'в меню подсвечена уже поставленная реакция');
   await page.keyboard.press('Escape');

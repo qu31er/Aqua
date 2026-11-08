@@ -19,7 +19,7 @@ async function readDuration(video) {
 
 /** @param {{video:HTMLVideoElement, playBtn:HTMLElement, tools:HTMLElement}} ui */
 export function createVideoEditor({ video, playBtn, tools }) {
-  let file = null, url = null, duration = 0, start = 0, end = 0, coverTime = 0;
+  let file = null, url = null, duration = 0, start = 0, end = 0, coverTime = 0, muted = false;
 
   const startH = el('button', { class: 'trim__handle', type: 'button', role: 'slider', 'aria-label': 'Начало' });
   const endH = el('button', { class: 'trim__handle', type: 'button', role: 'slider', 'aria-label': 'Конец' });
@@ -30,9 +30,20 @@ export function createVideoEditor({ video, playBtn, tools }) {
   const coverRange = el('input', { type: 'range', min: 0, max: 1000, value: 0, class: 'cover__range', 'aria-label': 'Кадр обложки' });
   const coverLabel = el('span', { class: 'editor__hint' });
 
+  const muteBtn = el('button', { class: 'chip', type: 'button', id: 'video-mute', 'aria-pressed': 'false' }, icon('i-volume'), el('span', { text: 'Со звуком' }));
+  const muteHint = el('p', { class: 'editor__hint', text: 'Без звука видео отправится как GIF и попадёт в «Сохранённые GIF».', hidden: true });
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.setAttribute('aria-pressed', String(muted));
+    muteBtn.querySelector('use').setAttribute('href', muted ? '#i-volume-off' : '#i-volume');
+    muteBtn.lastChild.textContent = muted ? 'Без звука (GIF)' : 'Со звуком';
+    muteHint.hidden = !muted; video.muted = muted;
+  });
+
   tools.replaceChildren(
     el('div', { class: 'trim' }, el('p', { class: 'editor__label', text: 'Обрезка' }), track,
       el('div', { class: 'trim__times' }, tStart, tLen, tEnd)),
+    el('div', { class: 'sound' }, muteBtn, muteHint),
     el('div', { class: 'cover' }, el('p', { class: 'editor__label', text: 'Обложка (кадр)' }), coverRange, coverLabel),
   );
 
@@ -102,7 +113,7 @@ export function createVideoEditor({ video, playBtn, tools }) {
 
   return {
     async load(f) {
-      file = f;
+      file = f; muted = false; muteBtn.setAttribute('aria-pressed', 'false'); muteHint.hidden = true; muteBtn.lastChild.textContent = 'Со звуком'; muteBtn.querySelector('use').setAttribute('href', '#i-volume'); video.muted = false;
       url = URL.createObjectURL(f);
       video.src = url;
       await new Promise((resolve, reject) => {
@@ -122,6 +133,11 @@ export function createVideoEditor({ video, playBtn, tools }) {
       let cover = null;
       try { cover = await captureCover(video, coverTime); } catch { /* без обложки — не критично */ }
       const needsTrim = start > 0.05 || end < duration - 0.05;
+      if (muted) {                                                              // без звука: всегда перекодируем без звуковой дорожки → GIF
+        if (!canTrim()) return { file, cover, trimmed: false, warning: 'Браузер не умеет убирать звук — видео отправлено как есть.' };
+        const silent = await trimVideo(file, start, end, { onProgress, signal, mute: true });
+        return { file: silent, cover, trimmed: true, gif: true };
+      }
       if (!needsTrim) return { file, cover, trimmed: false };                 // без перекодирования — без потерь
       if (!canTrim()) return { file, cover, trimmed: false, warning: 'Браузер не умеет обрезать видео — отправлено целиком.' };
       const trimmed = await trimVideo(file, start, end, { onProgress, signal });

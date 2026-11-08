@@ -300,6 +300,7 @@ async function handleFile(file) {
     const kind = res.file.type.startsWith('video/') ? 'video' : 'image';
     enqueue({
       kind, file: res.file, text: res.caption || null, localUrl: URL.createObjectURL(res.file),
+      ...(res.gif && kind === 'video' ? { meta: { gif: true } } : {}),
       ...(res.cover ? { coverFile: res.cover, coverLocalUrl: URL.createObjectURL(res.cover) } : {}),
     });
     return;
