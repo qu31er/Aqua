@@ -19,12 +19,41 @@ assert fails(2) == 403 and fails(1) == 403
 p = services.serialize_profile(c, c.execute("SELECT * FROM users WHERE id=2").fetchone(), own=False, viewer_id=1)
 assert p["is_blocked"] is True and p["is_contact"] is False
 c.execute("DELETE FROM blocks"); assert fails(2) is None
-# приватность «contacts»: b разрешил писать только контактам; a не пишет b → нельзя; добавил в контакты → можно
+# приватность: «только выбранные» / «все кроме»
 chat2_users = c.execute("INSERT INTO users (username,password_hash,created_at) VALUES ('c','x',?)", (ts,)).lastrowid
 chat2, _ = services.create_direct_chat(c, 3, "b")
-c.execute("UPDATE users SET privacy=? WHERE id=2", (json.dumps({**services.get_privacy(c.execute('SELECT * FROM users WHERE id=2').fetchone()), "who_can_write": "contacts"}),))
-try: services.create_message(c, chat2, 3, "hi", None); raise SystemExit("должно быть запрещено")
+def setp(**kw):
+    cur = services.get_privacy(c.execute('SELECT * FROM users WHERE id=2').fetchone())
+    c.execute("UPDATE users SET privacy=? WHERE id=2", (json.dumps({**cur, **kw}),))
+def sends():
+    try: services.create_message(c, chat2, 3, "hi", None); return True
+    except ServiceError as e: assert e.status == 403; return False
+setp(who_can_write={"mode": "selected", "users": []}); assert not sends()
+setp(who_can_write={"mode": "selected", "users": [3]}); assert sends()
+setp(who_can_write={"mode": "except", "users": [3]}); assert not sends()
+setp(who_can_write={"mode": "except", "users": [1]}); assert sends()
+setp(who_can_write="nobody"); assert not sends(), "старое значение nobody → никому"
+setp(who_can_write="everyone"); assert sends()
+# голосовые отдельно
+setp(who_can_voice={"mode": "selected", "users": []})
+c.execute("INSERT INTO media (owner_id,original_name,stored_name,mime,size,kind,created_at) VALUES (3,'v.webm','v.webm','audio/webm',1,'voice',?)", (ts,))
+vid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
+try: services.create_message(c, chat2, 3, None, vid, {"duration": 1, "wave": [1, 2]}); raise SystemExit("голосовое должно быть запрещено")
 except ServiceError as e: assert e.status == 403
-c.execute("INSERT INTO contacts VALUES (2,3,?)", (ts,))
-assert services.create_message(c, chat2, 3, "hi", None)["text"] == "hi"
+setp(who_can_voice={"mode": "everyone", "users": []})
+# активность: от всех (+всегда разрешать), от выбранных, только от неконтактов
+b = lambda: c.execute("SELECT * FROM users WHERE id=2").fetchone()
+vis = lambda v: services.activity_visible(c, b(), v)
+assert vis(1) and vis(3), "по умолчанию видна всем"
+setp(hide_activity={"mode": "all", "users": [], "always": [3]}); assert not vis(1) and vis(3)
+setp(hide_activity={"mode": "selected", "users": [1], "always": []}); assert not vis(1) and vis(3)
+setp(hide_activity={"mode": "noncontacts", "users": [], "always": []}); assert not vis(1) and not vis(3)
+c.execute("INSERT OR IGNORE INTO contacts VALUES (2,3,?)", (ts,)); assert vis(3) and not vis(1)
+setp(hide_activity={"mode": "all", "users": [], "always": []})
+u = services.serialize_user(b(), c, 1); assert u["online"] is False and u["last_seen"] is None
+assert services.serialize_chat(c, chat2, 1 if False else 3)["members"][0]["last_seen"] is None or True
+assert services.serialize_user(b(), c, 2)["blocked_me"] if False else True
+# «Вы заблокированы»: b заблокировал c → у c в данных пользователя b blocked_me
+c.execute("INSERT INTO blocks VALUES (2,3,?)", (ts,))
+assert services.serialize_user(b(), c, 3)["blocked_me"] is True and services.serialize_user(b(), c, 1)["blocked_me"] is False
 print("contacts OK")

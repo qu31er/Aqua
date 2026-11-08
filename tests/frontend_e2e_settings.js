@@ -48,10 +48,10 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(await page.evaluate(() => getComputedStyle(document.querySelector('#prefs-preview .msg--out .msg__bubble')).borderTopLeftRadius) === '4px', 'предпросмотр использует скругление');
   await page.screenshot({ path: 'tests/shots/chat-settings.png' });
   await page.click('#prefs-back'); await page.click('.prefs__nav[data-page="privacy"]');
-  await page.selectOption('#priv-who_can_write', 'contacts');
-  await page.selectOption('#priv-who_can_voice', 'nobody');
+  await page.selectOption('#priv-who_can_write', 'except');
+  await page.selectOption('#priv-who_can_voice', 'selected');
   await page.waitForTimeout(300);
-  ok(be.privPuts[0].who_can_write === 'contacts' && be.privPuts[1].who_can_voice === 'nobody', 'приватность сохранена');
+  ok(be.privPuts[0].who_can_write?.mode === 'except' && be.privPuts[1].who_can_voice?.mode === 'selected', 'приватность сохранена');
 
   await page.click('#prefs-back'); await page.click('.prefs__nav[data-page="account"]');
   await page.click('details:has(#form-username) > summary'); await page.fill('#form-username-username', 'alice2'); await page.fill('#form-username-password', 'bad');

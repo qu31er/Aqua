@@ -39,6 +39,7 @@ import { initSelection } from './ui/selection.js';
 import { forwardMessages } from './ui/media-actions.js';
 import { askDelete } from './ui/dialogs.js';
 import { getDraft, setDraft } from './drafts.js';
+import { rememberAccount, forgetAccount, listAccounts, switchAccount, startAddAccount, hasPrevSession, cancelAddAccount, clearPrev } from './accounts.js';
 import { openEditor } from './editor/editor-modal.js';
 
 const app = $('#app');
@@ -60,6 +61,8 @@ async function authenticate(request) {
   const { token, user } = await request;
   storage.set(TOKEN_KEY, token);
   setToken(token);
+  clearPrev();
+  rememberAccount(user, token);
   await enterApp(user);
 }
 
@@ -69,7 +72,7 @@ function renderNavAvatar() {
   $('#nav-avatar').replaceChildren(avatar(u.display_name || u.username, { user: u, small: true }));
 }
 function applyProfile(u) {
-  if (u.id === state.user.id) state.user = { ...state.user, ...u };
+  if (u.id === state.user.id) { state.user = { ...state.user, ...u }; rememberAccount(state.user); }
   for (const chat of state.chats.values()) {
     chat.members = chat.members.map((m) => (m.id === u.id ? { ...m, ...u } : m));
     if (chat.type === 'direct' && chat.members.some((m) => m.id === u.id) && u.id !== state.user.id) chat.title = u.display_name || u.username;
@@ -90,6 +93,7 @@ initPullDown($('#modal-settings .modal__body'), () => ownViewer.open(state.user,
 applyCachedPrefs();
 const settings = initSettings({
   onUsername: (u) => applyProfile(u),
+  accounts: { list: listAccounts, current: () => state.user?.id, onSwitch: switchAccount, onAdd: startAddAccount },
   onUnblock: () => {},
 });
 const peerProfile = initPeerProfile({ onChange: () => {}, onAvatars: (u) => peerViewer.open(u, false) });
@@ -112,11 +116,14 @@ async function enterApp(user) {
 }
 
 function logout(message) {
+  if (state.user) forgetAccount(state.user.id);
+  const next = listAccounts()[0];
+  if (next && switchAccount(next.id)) return;                    // есть другой аккаунт — переходим в него
   socket.close();
   storage.remove(TOKEN_KEY);
   setToken(null);
   resetState();
-  connectedOnce = false; outageShown = false;
+  connectedOnce = false; outageShown = false; renderConn();
   searchQuery = ''; foundUsers = null; $('#search').value = '';
   closeModal('modal-settings'); closeModal('modal-prefs'); closeModal('modal-peer'); closeModal('modal-contacts');
   applyPrefs({}, { cache: false });
@@ -474,16 +481,29 @@ function refreshTyping(chatId) {
   }
 }
 
-socket.on('ready', () => {
-  if (outageShown) { outageShown = false; toast('Соединение восстановлено'); }
-  if (connectedOnce) resync();
+/* Статус соединения: вместо всплывающих уведомлений — надпись рядом с «Aqua» и в шапке чата вместо «в сети» */
+const CONN_TEXT = { waiting: 'Ожидание сети...', connecting: 'Соединение...', updating: 'Обновление...' };
+let updating = false;
+function renderConn() {
+  let key = '';
+  if (state.user) key = !navigator.onLine ? 'waiting' : socket.state !== 'open' ? 'connecting' : updating ? 'updating' : '';
+  state.conn = CONN_TEXT[key] || '';
+  const node = $('#conn-status');
+  node.hidden = !state.conn; node.textContent = state.conn;
+  const chat = activeChat();
+  if (chat) renderStatus(chat);
+}
+window.addEventListener('online', renderConn);
+window.addEventListener('offline', renderConn);
+socket.on('ready', async () => {
+  if (connectedOnce) { updating = true; renderConn(); await resync(); updating = false; }
   connectedOnce = true;
+  renderConn();
 });
-socket.on('state', (s) => {
-  if (s === 'closed' && state.user && connectedOnce && !outageShown) {
-    outageShown = true;
-    toast('Соединение потеряно. Переподключаемся…', 4000);
-  }
+socket.on('state', renderConn);
+socket.on('blocked_me', ({ user_id, value }) => {
+  for (const chat of state.chats.values()) chat.members = chat.members.map((m) => (m.id === user_id ? { ...m, blocked_me: value } : m));
+  const chat = activeChat(); if (chat) renderStatus(chat);
 });
 socket.on('message', onMessage);
 socket.on('typing', ({ chat_id, user_id, username, is_typing }) =>
@@ -649,11 +669,15 @@ initSplash();                                   // заставка идёт п�
   if (saved) {
     setToken(saved);
     try {
-      await enterApp(await api.me());
+      const me = await api.me();
+      rememberAccount(me, saved);
+      await enterApp(me);
       return;
     } catch { /* токен недействителен или нет сети — показываем вход */ }
   }
+  $('#auth-cancel').hidden = !hasPrevSession();
   showScreen('auth');
 })();
+$('#auth-cancel').addEventListener('click', cancelAddAccount);
 
 window.__aquaStarted?.();                       // сообщаем стражу (boot-check.js), что модули загрузились

@@ -156,24 +156,36 @@ def change_password(data: PasswordChange, user: sqlite3.Row = Depends(get_curren
 
 # --- Приватность и предпочтения ----------------------------------------------------
 class PrivacyUpdate(BaseModel):
-    who_can_write: str | None = None
-    who_can_call: str | None = None
-    who_can_voice: str | None = None
+    who_can_write: dict | None = None
+    who_can_voice: dict | None = None
+    hide_activity: dict | None = None
 
 
 @router.put("/profile/privacy")
-def update_privacy(data: PrivacyUpdate, user: sqlite3.Row = Depends(get_current_user),
-                   conn: sqlite3.Connection = Depends(get_db)):
+async def update_privacy(data: PrivacyUpdate, user: sqlite3.Row = Depends(get_current_user),
+                         conn: sqlite3.Connection = Depends(get_db)):
+    """Правила: {mode: everyone|selected|except, users:[id]}; активность: {mode: none|all|selected|noncontacts, users, always}."""
+    import json
     privacy = services.get_privacy(user)
     for field in config.PRIVACY_FIELDS:
         value = getattr(data, field)
         if value is None:
             continue
-        if value not in config.PRIVACY_VALUES:
-            raise HTTPException(422, "Допустимо: everyone, contacts, nobody.")
-        privacy[field] = value
-    import json
+        if value.get("mode") not in config.PRIVACY_VALUES:
+            raise HTTPException(422, "Допустимо: everyone, selected, except.")
+        privacy[field] = services.normalize_rule(value)
+    if data.hide_activity is not None:
+        if data.hide_activity.get("mode") not in config.ACTIVITY_MODES:
+            raise HTTPException(422, "Неверный режим скрытия активности.")
+        privacy["hide_activity"] = services.normalize_activity(data.hide_activity)
     conn.execute("UPDATE users SET privacy = ? WHERE id = ?", (json.dumps(privacy), user["id"]))
+    conn.commit()
+    # Собеседники сразу видят новый статус (или перестают его видеть)
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    for uid in services.contact_ids(conn, user["id"]):
+        vis = services.activity_visible(conn, row, uid)
+        await manager.send_to_users([uid], {"type": "presence", "user_id": user["id"],
+            "online": vis and manager.is_online(user["id"]), "last_seen": row["last_seen"] if vis else None})
     return privacy
 
 

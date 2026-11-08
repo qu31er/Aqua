@@ -48,15 +48,19 @@ async def _authenticate(ws: WebSocket) -> sqlite3.Row | None:
 
 
 async def _broadcast_presence(user_id: int, online: bool) -> None:
+    """Статус рассылаем каждому получателю отдельно: приватность активности у каждого своя."""
     with connect() as conn:
         if not online:
             conn.execute("UPDATE users SET last_seen = ? WHERE id = ?", (services.now_iso(), user_id))
-        row = conn.execute("SELECT last_seen FROM users WHERE id = ?", (user_id,)).fetchone()
-        contacts = services.contact_ids(conn, user_id)
-    await manager.send_to_users(
-        contacts,
-        {"type": "presence", "user_id": user_id, "online": online, "last_seen": row["last_seen"]},
-    )
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        payloads = {}
+        for uid in services.contact_ids(conn, user_id):
+            if services.activity_visible(conn, row, uid):
+                payloads[uid] = {"type": "presence", "user_id": user_id, "online": online, "last_seen": row["last_seen"]}
+            else:
+                payloads[uid] = {"type": "presence", "user_id": user_id, "online": False, "last_seen": None}
+    for uid, payload in payloads.items():
+        await manager.send_to_users([uid], payload)
 
 
 async def _handle_message(user: sqlite3.Row, data: dict) -> None:

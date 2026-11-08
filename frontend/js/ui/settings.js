@@ -6,11 +6,13 @@ import { REACTIONS } from '../config.js';
 import { PALETTES, WALLPAPERS, applyPrefs } from '../theme.js';
 import { toast } from './toast.js';
 import { avatar } from './avatar.js';
+import { pickUsers } from './dialogs.js';
 
-const WHO = [['everyone', 'Все'], ['contacts', 'Только контакты'], ['nobody', 'Никто']];
+const WHO = [['everyone', 'Все'], ['selected', 'Только выбранные'], ['except', 'Все, кроме выбранных']];
+const ACTIVITY = [['none', 'Не скрывать'], ['all', 'Скрыть от всех'], ['selected', 'Скрыть от выбранных'], ['noncontacts', 'Скрыть от неконтактов']];
 
 /** onLogout не нужен: выход остаётся в профиле. onUsername(user) — логин изменён. */
-export function initSettings({ onUsername, onUnblock }) {
+export function initSettings({ onUsername, onUnblock, accounts }) {
   const body = $('#prefs-body');
 
   const prefs = () => state.user.prefs ?? {};
@@ -70,15 +72,45 @@ export function initSettings({ onUsername, onUnblock }) {
   }
 
   /* ---- Приватность ---- */
-  function select(field, label) {
-    const cur = state.user.privacy?.[field] || 'everyone';
-    const sel = el('select', { class: 'input', id: `priv-${field}`, 'aria-label': label,
-      onchange: async () => {
-        try { state.user.privacy = await api.updatePrivacy({ [field]: sel.value }); }
-        catch (e) { toast(e.message || 'Не удалось сохранить.'); sel.value = cur; }
-      } }, WHO.map(([v, t]) => el('option', { value: v, text: t, selected: v === cur })));
-    return el('div', { class: 'field' }, el('label', { class: 'field__label', for: `priv-${field}`, text: label }), sel);
+  /** Кого можно выбирать: контакты и собеседники из личных чатов. */
+  async function candidates() {
+    const map = new Map();
+    try { for (const u of await api.listContacts()) map.set(u.id, u); } catch { /* список контактов недоступен — берём только собеседников */ }
+    for (const c of state.chats.values()) for (const m of c.members) if (c.type === 'direct' && m.id !== state.user.id) map.set(m.id, map.get(m.id) ?? m);
+    return [...map.values()];
   }
+  async function savePrivacy(patch, rerender) {
+    try { state.user.privacy = await api.updatePrivacy(patch); }
+    catch (e) { toast(e.message || 'Не удалось сохранить.'); }
+    rerender();
+  }
+  /** Выбор режима + кнопка «выбрать людей» для режимов, где она нужна. */
+  function modeField({ id, label, options, get, set, lists }) {
+    const holder = el('div', { class: 'field', id: `field-${id}` });
+    const paint = () => {
+      const cur = get();
+      const sel = el('select', { class: 'input', id: `priv-${id}`, 'aria-label': label,
+        onchange: () => savePrivacy(set({ ...cur, mode: sel.value }), paint) }, options.map(([v, t]) => el('option', { value: v, text: t, selected: v === cur.mode })));
+      const extra = (lists[cur.mode] ?? []).map(({ key, title, hint }) => el('button', { type: 'button', class: 'btn btn--ghost priv__pick', dataset: { list: key },
+        text: `${title}: ${cur[key]?.length ?? 0}`, onclick: async () => {
+          const ids = await pickUsers({ title, hint, users: await candidates(), selected: cur[key] ?? [] });
+          if (ids) savePrivacy(set({ ...cur, [key]: ids }), paint);
+        } }));
+      holder.replaceChildren(el('label', { class: 'field__label', for: `priv-${id}`, text: label }), sel, ...extra);
+    };
+    paint();
+    return holder;
+  }
+  const rule = (field, label) => modeField({ id: field, label, options: WHO,
+    get: () => state.user.privacy?.[field] ?? { mode: 'everyone', users: [] },
+    set: (v) => ({ [field]: { mode: v.mode, users: v.users ?? [] } }),
+    lists: { selected: [{ key: 'users', title: 'Разрешено', hint: 'Только эти люди смогут вам писать.' }],
+             except: [{ key: 'users', title: 'Запрещено', hint: 'Эти люди не смогут вам писать.' }] } });
+  const activityField = () => modeField({ id: 'hide_activity', label: 'Скрыть «в сети» и время посещения', options: ACTIVITY,
+    get: () => state.user.privacy?.hide_activity ?? { mode: 'none', users: [], always: [] },
+    set: (v) => ({ hide_activity: { mode: v.mode, users: v.users ?? [], always: v.always ?? [] } }),
+    lists: { all: [{ key: 'always', title: 'Всегда разрешать', hint: 'Выбранные люди будут видеть вашу активность, даже если она скрыта.' }],
+             selected: [{ key: 'users', title: 'Скрыть от', hint: 'Эти люди не увидят вашу активность.' }] } });
   const blockedBox = el('div', { class: 'blocked', id: 'blocked-list' });
   async function loadBlocked() {
     try {
@@ -93,7 +125,7 @@ export function initSettings({ onUsername, onUnblock }) {
     } catch (e) { blockedBox.textContent = e.message; }
   }
   const privacySection = () => section('Приватность',
-    select('who_can_write', 'Кто может писать мне'), select('who_can_voice', 'Кто может присылать голосовые'),
+    rule('who_can_write', 'Кто может писать мне'), rule('who_can_voice', 'Кто может присылать голосовые'), activityField(),
     el('h4', { class: 'prefs__sub', text: 'Заблокированные' }), blockedBox);
 
   /* ---- Аккаунт ---- */
@@ -111,6 +143,20 @@ export function initSettings({ onUsername, onUnblock }) {
     const details = el('details', { class: 'prefs__details' }, el('summary', { text: summary }), form);
     return details;
   }
+  /** Быстрое переключение аккаунтов: список всех аккаунтов этого устройства с аватаркой и ником. */
+  const accountsSection = () => {
+    const list = accounts?.list() ?? [];
+    return section('Аккаунты на этом устройстве',
+      el('div', { class: 'accs', id: 'accounts-list' }, list.map((a) => {
+        const cur = a.id === accounts.current();
+        return el('button', { type: 'button', class: `accs__row${cur ? ' is-current' : ''}`, dataset: { account: a.id }, 'aria-current': cur ? 'true' : null,
+          onclick: () => { if (!cur) accounts.onSwitch(a.id); } },
+          avatar(a.display_name, { user: { id: a.id, display_name: a.display_name, username: a.username, avatar: a.avatar }, small: true }),
+          el('span', { class: 'accs__name' }, el('b', { text: a.display_name }), el('small', { text: `@${a.username}` })),
+          cur ? icon('i-check') : null);
+      })),
+      el('button', { type: 'button', class: 'btn btn--ghost', id: 'account-add', text: '+ Добавить аккаунт', onclick: () => accounts.onAdd() }));
+  };
   const accountSection = () => section('Аккаунт',
     formBox('form-username', 'Сменить логин', [
       { name: 'username', label: 'Новый логин', auto: 'username' }, { name: 'password', label: 'Текущий пароль', type: 'password', auto: 'current-password' },
@@ -153,11 +199,11 @@ export function initSettings({ onUsername, onUnblock }) {
   const PAGES = {
     menu: { title: 'Настройки', build: () => [
       navRow('chats', 'Настройки чатов', 'Вид сообщений, тема, обои, быстрая реакция'),
-      navRow('privacy', 'Конфиденциальность', 'Кто может писать, заблокированные'),
-      navRow('account', 'Аккаунт', 'Логин и пароль')] },
+      navRow('privacy', 'Конфиденциальность', 'Кто может писать, активность, заблокированные'),
+      navRow('account', 'Аккаунт', 'Аккаунты, логин и пароль')] },
     chats: { title: 'Настройки чатов', build: () => [previewSection(), bubblesSection(), themeSection(), wallpaperSection(), reactionSection()] },
     privacy: { title: 'Конфиденциальность', build: () => [privacySection()], after: loadBlocked },
-    account: { title: 'Аккаунт', build: () => [accountSection()] },
+    account: { title: 'Аккаунт', build: () => [accounts ? accountsSection() : null, accountSection()].filter(Boolean) },
   };
   let page = 'menu';
   function navRow(id, title, hint) {

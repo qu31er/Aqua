@@ -167,8 +167,10 @@ export function renderStatus(chat) {
   const node = $('#peer-status');
   const typers = state.typing.get(chat.id);
   const peer = peerOf(chat);
-  node.classList.toggle('is-online', Boolean(typers?.size) || Boolean(peer?.online));
-  if (typers?.size) {
+  node.classList.toggle('is-online', !state.conn && (Boolean(typers?.size) || Boolean(peer?.online)));
+  if (state.conn) node.textContent = state.conn;                               // «Соединение...» вместо «в сети»
+  else if (chat.type === 'direct' && peer?.blocked_me) node.textContent = 'Вы заблокированы';
+  else if (typers?.size) {
     const who = chat.type === 'group' ? `${[...typers.values()][0].username} печатает` : 'печатает';
     node.replaceChildren(who, ...[1, 2, 3].map(() => el('span', { class: 'typing__dot' })));
   } else if (chat.type === 'group') node.textContent = `${chat.members.length} участн.`;

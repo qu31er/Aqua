@@ -5,6 +5,7 @@ export const state = {
   chats: new Map(),           // chatId -> chat (как отдаёт API)
   order: [],                  // chatId в порядке отображения
   activeChatId: null,
+  conn: '',                   // подпись состояния соединения («Соединение...») или пусто
   history: new Map(),         // chatId -> {items: [message], hasMore, loading}
   pending: new Map(),         // chatId -> [{clientId, text, created_at, failed}]
   unread: new Map(),          // chatId -> число непрочитанных за эту сессию

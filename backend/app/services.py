@@ -36,10 +36,60 @@ def _json(value, default):
     return data if isinstance(data, dict) else default
 
 
+def _ids(value) -> list[int]:
+    if not isinstance(value, list):
+        return []
+    out = []
+    for v in value:
+        if isinstance(v, int) and not isinstance(v, bool) and v not in out:
+            out.append(v)
+    return out[: config.PRIVACY_MAX_USERS]
+
+
+def normalize_rule(value) -> dict:
+    """Правило «кому можно»: {mode: everyone|selected|except, users: [id…]}. Старые строки приводим к новому виду."""
+    if isinstance(value, dict) and value.get("mode") in config.PRIVACY_VALUES:
+        return {"mode": value["mode"], "users": _ids(value.get("users"))}
+    if value == "nobody":
+        return {"mode": "selected", "users": []}
+    return {"mode": "everyone", "users": []}
+
+
+def normalize_activity(value) -> dict:
+    """Скрытие активности: mode + users (для «от выбранных») + always (кому всегда показывать при «от всех»)."""
+    value = value if isinstance(value, dict) else {}
+    mode = value.get("mode") if value.get("mode") in config.ACTIVITY_MODES else "none"
+    return {"mode": mode, "users": _ids(value.get("users")), "always": _ids(value.get("always"))}
+
+
 def get_privacy(row: sqlite3.Row) -> dict:
     """Настройки приватности с значениями по умолчанию для отсутствующих ключей."""
     saved = _json(row["privacy"], {})
-    return {f: saved.get(f) if saved.get(f) in config.PRIVACY_VALUES else "everyone" for f in config.PRIVACY_FIELDS}
+    out = {f: normalize_rule(saved.get(f)) for f in config.PRIVACY_FIELDS}
+    out["hide_activity"] = normalize_activity(saved.get("hide_activity"))
+    return out
+
+
+def rule_allows(rule: dict, user_id: int) -> bool:
+    if rule["mode"] == "selected":
+        return user_id in rule["users"]
+    if rule["mode"] == "except":
+        return user_id not in rule["users"]
+    return True
+
+
+def activity_visible(conn: sqlite3.Connection, owner: sqlite3.Row, viewer_id: int) -> bool:
+    """Видит ли viewer «в сети / был(а) …» пользователя owner."""
+    if owner["id"] == viewer_id:
+        return True
+    rule = get_privacy(owner)["hide_activity"]
+    if rule["mode"] == "all":
+        return viewer_id in rule["always"]
+    if rule["mode"] == "selected":
+        return viewer_id not in rule["users"]
+    if rule["mode"] == "noncontacts":
+        return is_contact(conn, owner["id"], viewer_id)
+    return True
 
 
 def get_prefs(row: sqlite3.Row) -> dict:
@@ -73,9 +123,9 @@ def list_avatars(conn: sqlite3.Connection, user_id: int) -> list[dict]:
     return items
 
 
-def serialize_user(row: sqlite3.Row) -> dict:
-    """Публичные данные пользователя (видны собеседникам)."""
-    return {
+def serialize_user(row: sqlite3.Row, conn: sqlite3.Connection | None = None, viewer_id: int | None = None) -> dict:
+    """Публичные данные пользователя. С conn и viewer_id учитывает приватность активности и блокировку."""
+    data = {
         "id": row["id"],
         "username": row["username"],
         "display_name": row["display_name"] or row["username"],
@@ -83,6 +133,11 @@ def serialize_user(row: sqlite3.Row) -> dict:
         "online": manager.is_online(row["id"]),
         "last_seen": row["last_seen"],
     }
+    if conn is not None and viewer_id is not None and viewer_id != row["id"]:
+        if not activity_visible(conn, row, viewer_id):
+            data["online"], data["last_seen"] = False, None
+        data["blocked_me"] = is_blocked(conn, row["id"], viewer_id)      # «Вы заблокированы» вместо «был(а) недавно»
+    return data
 
 
 def serialize_tracks(conn: sqlite3.Connection, user_id: int) -> list[dict]:
@@ -104,7 +159,7 @@ def is_blocked(conn: sqlite3.Connection, owner_id: int, other_id: int) -> bool:
 
 def serialize_profile(conn: sqlite3.Connection, row: sqlite3.Row, *, own: bool, viewer_id: int | None = None) -> dict:
     """Профиль целиком. Приватность и настройки отдаём только владельцу; для чужого — признаки «контакт/заблокирован»."""
-    data = {**serialize_user(row), "bio": row["bio"] or "", "tracks": serialize_tracks(conn, row["id"])}
+    data = {**serialize_user(row, conn, viewer_id), "bio": row["bio"] or "", "tracks": serialize_tracks(conn, row["id"])}
     if own:
         data["privacy"] = get_privacy(row)
         data["prefs"] = get_prefs(row)
@@ -162,7 +217,7 @@ def serialize_chat(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> di
         "type": chat["type"],
         "title": title,
         "created_at": chat["created_at"],
-        "members": [serialize_user(m) for m in members],
+        "members": [serialize_user(m, conn, viewer_id) for m in members],
         "last_message": get_message(conn, last["id"]) if last else None,
         "reads": {r["user_id"]: r["last_read_id"] for r in conn.execute(
             "SELECT user_id, last_read_id FROM chat_members WHERE chat_id = ?", (chat_id,))},
@@ -372,11 +427,6 @@ def validate_meta(kind: str, meta) -> dict | None:
     return {"duration": round(float(duration), 2), "wave": wave}
 
 
-def _has_written_to(conn: sqlite3.Connection, chat_id: int, author: int) -> bool:
-    return conn.execute("SELECT 1 FROM messages WHERE chat_id = ? AND sender_id = ? LIMIT 1",
-                        (chat_id, author)).fetchone() is not None
-
-
 def enforce_privacy(conn: sqlite3.Connection, chat_id: int, sender_id: int, *, voice: bool) -> None:
     """Личные чаты: учитываем, кому получатель разрешил писать / слать голосовые.
 
@@ -397,14 +447,10 @@ def enforce_privacy(conn: sqlite3.Connection, chat_id: int, sender_id: int, *, v
     if is_blocked(conn, other["id"], sender_id):
         raise ServiceError(403, "Вы не можете писать этому пользователю.")
     privacy = get_privacy(other)
-    rules = [("who_can_write", "Пользователь ограничил, кто может ему писать.")]
-    if voice:
-        rules.append(("who_can_voice", "Пользователь не принимает голосовые сообщения от вас."))
-    for field, message in rules:
-        value = privacy[field]
-        if value == "nobody" or (value == "contacts" and not (is_contact(conn, other["id"], sender_id)
-                                                              or _has_written_to(conn, chat_id, other["id"]))):
-            raise ServiceError(403, message)
+    if not rule_allows(privacy["who_can_write"], sender_id):
+        raise ServiceError(403, "Пользователь ограничил, кто может ему писать.")
+    if voice and not rule_allows(privacy["who_can_voice"], sender_id):
+        raise ServiceError(403, "Пользователь не принимает голосовые сообщения от вас.")
 
 
 def create_message(

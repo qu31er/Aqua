@@ -1,5 +1,6 @@
 /* Маленькое окошко с полем ввода вместо window.prompt (в приложении-обёртке prompt работает плохо). */
 import { el } from '../dom.js';
+import { avatar } from './avatar.js';
 
 /** @returns {Promise<string|null>} введённый текст или null при отмене */
 export function askText({ title, placeholder = '', value = '', ok = 'Готово', max = 40 }) {
@@ -36,5 +37,30 @@ export function askDelete({ count, canAll }) {
     box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(null); } });
     document.body.append(box);
     box.querySelector('#delete-ok').focus();
+  });
+}
+
+/** Выбор пользователей галочками. @returns {Promise<number[]|null>} id выбранных или null при отмене */
+export function pickUsers({ title, users, selected = [], hint = '' }) {
+  return new Promise((resolve) => {
+    const chosen = new Set(selected);
+    const close = (v) => { box.remove(); resolve(v); };
+    const rows = users.map((u) => {
+      const cb = el('input', { type: 'checkbox', checked: chosen.has(u.id), dataset: { uid: u.id },
+        onchange: () => { if (cb.checked) chosen.add(u.id); else chosen.delete(u.id); } });
+      return el('label', { class: 'pick__row' }, cb, avatar(u.display_name || u.username, { user: u, small: true }),
+        el('span', { class: 'pick__name' }, el('b', { text: u.display_name || u.username }), el('small', { text: `@${u.username}` })));
+    });
+    const box = el('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+      el('div', { class: 'dialog__backdrop', onclick: () => close(null) }),
+      el('div', { class: 'dialog__card dialog__card--tall' },
+        el('h3', { class: 'dialog__title', text: title }),
+        hint ? el('p', { class: 'dialog__hint', text: hint }) : null,
+        el('div', { class: 'pick' }, rows.length ? rows : [el('p', { class: 'dialog__hint', text: 'Пока некого выбрать: добавьте контакты или начните переписку.' })]),
+        el('div', { class: 'dialog__actions' },
+          el('button', { class: 'btn btn--ghost', type: 'button', text: 'Отмена', onclick: () => close(null) }),
+          el('button', { class: 'btn btn--primary', type: 'button', id: 'pick-ok', text: 'Готово', onclick: () => close([...chosen]) }))));
+    box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(null); } });
+    document.body.append(box);
   });
 }

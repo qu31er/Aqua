@@ -22,7 +22,7 @@ def _target(conn: sqlite3.Connection, me: sqlite3.Row, user_id: int) -> sqlite3.
 def _list(conn: sqlite3.Connection, table: str, col: str, owner: int) -> list[dict]:
     rows = conn.execute(
         f"SELECT u.* FROM {table} t JOIN users u ON u.id = t.{col} WHERE t.user_id = ? ORDER BY t.created_at DESC", (owner,)).fetchall()
-    return [services.serialize_user(r) for r in rows]
+    return [services.serialize_user(r, conn, owner) for r in rows]
 
 
 @router.get("/contacts")
@@ -55,6 +55,7 @@ async def block(user_id: int, me: sqlite3.Row = Depends(get_current_user), conn:
     conn.execute("INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)",
                  (me["id"], user_id, services.now_iso()))
     await manager.send_to_users([me["id"]], {"type": "block", "user_id": user_id, "blocked": True})
+    await manager.send_to_users([user_id], {"type": "blocked_me", "user_id": me["id"], "value": True})
     return {"is_blocked": True}
 
 
@@ -62,4 +63,5 @@ async def block(user_id: int, me: sqlite3.Row = Depends(get_current_user), conn:
 async def unblock(user_id: int, me: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
     conn.execute("DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?", (me["id"], user_id))
     await manager.send_to_users([me["id"]], {"type": "block", "user_id": user_id, "blocked": False})
+    await manager.send_to_users([user_id], {"type": "blocked_me", "user_id": me["id"], "value": False})
     return {"is_blocked": False}

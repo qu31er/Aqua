@@ -31,7 +31,7 @@ def search_users(
         "ORDER BY username LIMIT 20",
         (f"%{safe}%", f"%{safe}%", user["id"]),
     ).fetchall()
-    return [services.serialize_user(r) for r in rows]
+    return [services.serialize_user(r, conn, user["id"]) for r in rows]
 
 
 # --- Чаты -----------------------------------------------------------------------
