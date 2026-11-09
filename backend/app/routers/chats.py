@@ -36,8 +36,8 @@ def search_users(
 
 # --- Чаты -----------------------------------------------------------------------
 class ChatCreate(BaseModel):
-    type: Literal["direct", "group"]
-    username: str | None = Field(None, max_length=64)          # для direct
+    type: Literal["direct", "group", "channel"]
+    username: str | None = Field(None, max_length=64)          # для direct и канала (@username канала)
     title: str | None = Field(None, max_length=64)             # для group
     members: list[str] = Field(default_factory=list, max_length=50)  # для group
 
@@ -60,6 +60,9 @@ async def create_chat(
             if not data.username:
                 raise HTTPException(422, "Укажите username собеседника.")
             chat_id, created = services.create_direct_chat(conn, user["id"], data.username)
+        elif data.type == "channel":
+            chat_id = services.create_channel(conn, user["id"], data.title or "", data.username or "")
+            created = True
         else:
             chat_id = services.create_group_chat(conn, user["id"], data.title or "", data.members)
             created = True

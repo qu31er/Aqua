@@ -165,6 +165,10 @@ export function renderHeader(chat) {
 
 export function renderStatus(chat) {
   const node = $('#peer-status');
+  // В канале писать могут только администраторы: у подписчика вместо поля ввода — подсказка
+  const ro = chat.type === 'channel' && !chat.can_post;
+  $('#composer').hidden = ro || $('#app').dataset.selecting === 'true';
+  $('#channel-readonly')?.toggleAttribute('hidden', !ro);
   const typers = state.typing.get(chat.id);
   const peer = peerOf(chat);
   node.classList.toggle('is-online', !state.conn && (Boolean(typers?.size) || Boolean(peer?.online)));
@@ -173,7 +177,8 @@ export function renderStatus(chat) {
   else if (typers?.size) {
     const who = chat.type === 'group' ? `${[...typers.values()][0].username} печатает` : 'печатает';
     node.replaceChildren(who, ...[1, 2, 3].map(() => el('span', { class: 'typing__dot' })));
-  } else if (chat.type === 'group') node.textContent = `${chat.members.length} участн.`;
+  } else if (chat.type === 'channel') node.textContent = `${chat.members.length} подписч.`;
+  else if (chat.type === 'group') node.textContent = `${chat.members.length} участн.`;
   else node.textContent = peer?.online ? 'в сети' : lastSeenText(peer?.last_seen);
 }
 

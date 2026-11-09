@@ -4,6 +4,7 @@
 (проверка членства, лимиты, сериализация) были в одном месте.
 """
 import json
+import re
 import shutil
 import sqlite3
 import uuid
@@ -195,6 +196,11 @@ def contact_ids(conn: sqlite3.Connection, user_id: int) -> list[int]:
     return [r["user_id"] for r in rows]
 
 
+def _is_owner(conn, chat_id, uid) -> bool:
+    r = conn.execute("SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?", (chat_id, uid)).fetchone()
+    return bool(r and r["role"] == "owner")
+
+
 def serialize_chat(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> dict:
     chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
     members = conn.execute(
@@ -214,7 +220,9 @@ def serialize_chat(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> di
     ).fetchone()
     return {
         "id": chat["id"],
-        "type": chat["type"],
+        "type": "channel" if chat["is_channel"] else chat["type"],
+        "username": chat["username"],
+        "can_post": not chat["is_channel"] or _is_owner(conn, chat_id, viewer_id),
         "title": title,
         "created_at": chat["created_at"],
         "members": [serialize_user(m, conn, viewer_id) for m in members],
@@ -286,6 +294,35 @@ def create_group_chat(
         [(chat_id, uid, "owner" if uid == me else "member", ts) for uid in ids],
     )
     return chat_id
+
+
+def create_channel(conn: sqlite3.Connection, me: int, title: str, username: str) -> int:
+    """Канал: создатель — администратор, публиковать могут только администраторы."""
+    title = (title or "").strip()
+    username = (username or "").strip().lstrip("@").lower()
+    if not title:
+        raise ServiceError(400, "Укажите название канала.")
+    if not re.fullmatch(r"[a-z0-9_]{4,32}", username):
+        raise ServiceError(400, "Имя канала: 4–32 латинских буквы, цифры или _.")
+    if conn.execute("SELECT 1 FROM chats WHERE username = ?", (username,)).fetchone() or \
+       conn.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
+        raise ServiceError(409, "Такое имя уже занято.")
+    ts = now_iso()
+    cur = conn.execute(
+        "INSERT INTO chats (type, title, username, is_channel, created_by, created_at) VALUES ('group', ?, ?, 1, ?, ?)",
+        (title, username, me, ts))
+    conn.execute("INSERT INTO chat_members (chat_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
+                 (cur.lastrowid, me, ts))
+    return cur.lastrowid
+
+
+def require_can_post(conn: sqlite3.Connection, chat_id: int, sender_id: int) -> None:
+    chat = conn.execute("SELECT is_channel FROM chats WHERE id = ?", (chat_id,)).fetchone()
+    if chat is None or not chat["is_channel"]:
+        return
+    row = conn.execute("SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?", (chat_id, sender_id)).fetchone()
+    if row is None or row["role"] != "owner":
+        raise ServiceError(403, "В канале публиковать может только администратор.")
 
 
 # --- Сообщения -----------------------------------------------------------------
@@ -434,6 +471,7 @@ def enforce_privacy(conn: sqlite3.Connection, chat_id: int, sender_id: int, *, v
     Заблокированный пользователь писать не может вовсе.
     На группы и каналы настройки не действуют.
     """
+    require_can_post(conn, chat_id, sender_id)
     chat = conn.execute("SELECT type FROM chats WHERE id = ?", (chat_id,)).fetchone()
     if chat is None or chat["type"] != "direct":
         return

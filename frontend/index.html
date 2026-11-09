@@ -289,6 +289,9 @@
         <button class="nav__item" type="button" id="nav-settings"><svg class="icon"><use href="#i-settings"/></svg><span>Настройки</span></button>
         <button class="nav__item" type="button" id="nav-profile"><span class="nav__avatar" id="nav-avatar"></span><span>Профиль</span></button>
       </nav>
+      <button class="fab-channel" type="button" id="btn-new-channel" aria-label="Создать канал" title="Создать канал">
+        <svg class="icon"><use href="#i-edit"/></svg>
+      </button>
     </aside>
 
     <!-- Окно переписки -->
@@ -372,6 +375,7 @@
           <button class="selbar__btn" type="button" id="sel-forward"><svg class="icon"><use href="#i-forward"/></svg><span>Переслать</span></button>
           <button class="selbar__btn is-danger" type="button" id="sel-delete"><svg class="icon"><use href="#i-trash"/></svg><span>Удалить</span></button>
         </div>
+        <p class="channel-readonly" id="channel-readonly" hidden>Публиковать может только администратор канала</p>
         <form class="composer" id="composer" data-has-text="false">
           <button class="btn-icon icon-anim-wiggle" type="button" id="btn-attach" aria-label="Прикрепить файл">
             <svg class="icon"><use href="#i-attach"/></svg>

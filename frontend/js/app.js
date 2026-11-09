@@ -37,7 +37,7 @@ import { initFileManager } from './ui/file-manager.js';
 import { initLightbox } from './ui/lightbox.js';
 import { initSelection } from './ui/selection.js';
 import { forwardMessages } from './ui/media-actions.js';
-import { askDelete } from './ui/dialogs.js';
+import { askDelete, askText } from './ui/dialogs.js';
 import { getDraft, setDraft } from './drafts.js';
 import { initNotifications, askPermissionOnEntry, notifyMessage } from './notify.js';
 import { rememberAccount, forgetAccount, listAccounts, switchAccount, startAddAccount, hasPrevSession, cancelAddAccount, clearPrev } from './accounts.js';
@@ -568,6 +568,20 @@ async function openUser(username) {
     await openChat(chat.id);
   } catch (e) { toast(e.message); }
 }
+
+/** Карандаш: создать канал (название и @username). Создатель — администратор, публиковать могут только админы. */
+async function createChannel() {
+  const title = await askText({ title: 'Название канала', placeholder: 'Например, Новости Aqua', max: 64 });
+  if (!title) return;
+  const username = await askText({ title: 'Публичный @username канала', placeholder: 'latin_letters_123', max: 32, ok: 'Создать' });
+  if (!username) return;
+  try {
+    const chat = await api.createChannel(title, username.replace(/^@/, ''));
+    upsertChat(chat); renderList();
+    await openChat(chat.id);
+  } catch (e) { toast(e.message); }
+}
+$('#btn-new-channel').addEventListener('click', createChannel);
 
 /* ============================== Сборка UI ============================== */
 const chatList = initChatList({ onOpenChat: (id) => openChat(id), onOpenUser: openUser });

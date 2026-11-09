@@ -134,10 +134,15 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
     if (mu) { const id = +mu[1]; return json(200, { ...be.carl, id, bio: 'Дизайнер. Люблю море.', tracks: [], is_contact: Boolean(be.contacts?.has(id)), is_blocked: Boolean(be.blocked?.has(id)) }); }
     if (path === '/auth/me') return json(200, be.me);
     if (path === '/chats' && req.method() === 'GET') return json(200, be.chats());
+    if (path === '/chats' && req.method() === 'POST' && req.postDataJSON().type === 'channel') {
+      const d = req.postDataJSON(); const ch = { id: 77, type: 'channel', title: d.title, username: d.username, can_post: true, created_at: new Date().toISOString(),
+        members: [be.me], last_message: null, reads: {}, pinned: null };
+      (be.created ??= []).push(ch); return json(201, ch);
+    }
     let m = path.match(/^\/chats\/(\d+)\/messages$/);
     if (m && req.method() === 'GET') {
       const before = +u.searchParams.get('before_id') || Infinity, lim = +u.searchParams.get('limit');
-      return json(200, be.msgs[m[1]].filter((x) => x.id < before).slice(-lim));
+      return json(200, (be.msgs[m[1]] || []).filter((x) => x.id < before).slice(-lim));
     }
     if (path === '/users/search') return json(200, [be.carl, { id: 4, username: 'dave', online: false, last_seen: null }].filter((x) => x.username.includes(u.searchParams.get('q'))));
     m = path.match(/^\/messages\/(\d+)$/);

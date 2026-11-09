@@ -207,6 +207,13 @@ def init_db(path: Path = DB_PATH) -> None:
             conn.execute("ALTER TABLE messages ADD COLUMN edited_at TEXT")
         if "cover_id" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN cover_id INTEGER REFERENCES media(id) ON DELETE SET NULL")
+        # Блок 7: каналы — признак канала и публичный @username (канал = группа с is_channel=1)
+        ccols = {r["name"] for r in conn.execute("PRAGMA table_info(chats)")}
+        if "is_channel" not in ccols:
+            conn.execute("ALTER TABLE chats ADD COLUMN is_channel INTEGER NOT NULL DEFAULT 0")
+        if "username" not in ccols:
+            conn.execute("ALTER TABLE chats ADD COLUMN username TEXT")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_username ON chats(username)")
         # Блок 4: пересланные, закреплённое сообщение, прочитанность
         if "fwd" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN fwd TEXT")
