@@ -197,15 +197,53 @@ export function initSettings({ onUsername, onUnblock, accounts }) {
 
   /* ---- Страницы ---- */
   const PAGES = {
-    menu: { title: 'Настройки', build: () => [
-      navRow('chats', 'Настройки чатов', 'Вид сообщений, тема, обои, быстрая реакция'),
-      navRow('privacy', 'Конфиденциальность', 'Кто может писать, активность, заблокированные'),
-      navRow('account', 'Аккаунт', 'Аккаунты, логин и пароль')] },
+    menu: { title: 'Настройки', build: () => [menuHeader(), accountsMini(), el('div', { class: 'tg-list' },
+      tgRow('account', 'i-profile', 'tg-ico--blue', 'Аккаунт', 'Номер, имя пользователя, «О себе»'),
+      tgRow('chats', 'i-chats', 'tg-ico--orange', 'Настройки чатов', 'Обои, тема, вид сообщений, реакции'),
+      tgRow('privacy', 'i-eye', 'tg-ico--green', 'Конфиденциальность', 'Кто может писать, активность, блокировки'))] },
     chats: { title: 'Настройки чатов', build: () => [previewSection(), bubblesSection(), themeSection(), wallpaperSection(), reactionSection()] },
     privacy: { title: 'Конфиденциальность', build: () => [privacySection()], after: loadBlocked },
     account: { title: 'Аккаунт', build: () => [accounts ? accountsSection() : null, accountSection()].filter(Boolean) },
   };
   let page = 'menu';
+  /* Главная страница настроек в стиле Telegram: шапка с аватаркой, «Аккаунты», цветные иконки разделов */
+  function currentAccount() {
+    const list = accounts?.list() ?? [];
+    return list.find((a) => a.id === accounts?.current()) ?? list[0] ?? null;
+  }
+  function menuHeader() {
+    const a = currentAccount();
+    if (!a) return el('div');
+    const name = a.display_name || a.username;
+    return el('div', { class: 'tg-head' },
+      avatar(name, { user: { id: a.id, display_name: name, username: a.username, avatar: a.avatar }, big: true }),
+      el('b', { class: 'tg-head__name', text: name }),
+      el('small', { class: 'tg-head__login', text: `@${a.username}` }));
+  }
+  function accountsMini() {
+    if (!accounts) return el('div');
+    const list = accounts.list();
+    return el('section', { class: 'tg-section' },
+      el('h3', { class: 'tg-section__title', text: 'Аккаунты' }),
+      el('div', { class: 'tg-list' },
+        list.map((a) => {
+          const cur = a.id === accounts.current();
+          return el('button', { type: 'button', class: 'tg-row tg-row--acc', dataset: { account: a.id },
+            onclick: () => { if (!cur) accounts.onSwitch(a.id); } },
+            avatar(a.display_name || a.username, { user: { id: a.id, display_name: a.display_name, username: a.username, avatar: a.avatar }, small: true }),
+            el('span', { class: 'tg-row__text' }, el('b', { text: a.display_name || a.username })),
+            cur ? icon('i-check', 'tg-row__mark') : null);
+        }),
+        el('button', { type: 'button', class: 'tg-row tg-row--add', id: 'account-add-mini', onclick: () => accounts.onAdd() },
+          el('span', { class: 'tg-ico tg-ico--plus' }, icon('i-plus')),
+          el('span', { class: 'tg-row__text' }, el('b', { text: 'Добавить аккаунт' })))));
+  }
+  function tgRow(id, iconId, tone, title, hint) {
+    return el('button', { type: 'button', class: 'tg-row', dataset: { page: id }, onclick: () => render(id) },
+      el('span', { class: `tg-ico ${tone}` }, icon(iconId)),
+      el('span', { class: 'tg-row__text' }, el('b', { text: title }), el('small', { text: hint })),
+      icon('i-chevron', 'tg-row__chev'));
+  }
   function navRow(id, title, hint) {
     return el('button', { type: 'button', class: 'prefs__nav', dataset: { page: id }, onclick: () => render(id) },
       el('span', {}, el('b', { text: title }), el('small', { text: hint })), icon('i-chevron'));

@@ -12,8 +12,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   // --- Настройки ---
 
   await page.click('#nav-settings'); await page.waitForSelector('#modal-prefs.is-open');
-  ok(await page.locator('.prefs__nav').count() === 3 && await page.locator('#prefs-back').isHidden(), 'настройки: 3 раздела');
-  await page.click('.prefs__nav[data-page="chats"]');
+  ok(await page.locator('.tg-row[data-page]').count() === 3 && await page.locator('#prefs-back').isHidden(), 'настройки: 3 раздела');
+  await page.click('[data-page="chats"]');
   ok(await page.locator('#prefs-title').textContent() === 'Настройки чатов' && await page.locator('#prefs-preview').isVisible(), 'раздел «Настройки чатов» с предпросмотром');
   ok(await page.locator('.theme-sw').count() === 8, 'палитры: 7 готовых + свой цвет');
   await page.click('.theme-sw[data-palette="mint"]');
@@ -47,13 +47,13 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(be.prefsPuts.some((p) => p.bubble_radius === 4) && be.prefsPuts.some((p) => p.text_size === 120), 'скругление и размер текста сохранены');
   ok(await page.evaluate(() => getComputedStyle(document.querySelector('#prefs-preview .msg--out .msg__bubble')).borderTopLeftRadius) === '4px', 'предпросмотр использует скругление');
   await page.screenshot({ path: 'tests/shots/chat-settings.png' });
-  await page.click('#prefs-back'); await page.click('.prefs__nav[data-page="privacy"]');
+  await page.click('#prefs-back'); await page.click('[data-page="privacy"]');
   await page.selectOption('#priv-who_can_write', 'except');
   await page.selectOption('#priv-who_can_voice', 'selected');
   await page.waitForTimeout(300);
   ok(be.privPuts[0].who_can_write?.mode === 'except' && be.privPuts[1].who_can_voice?.mode === 'selected', 'приватность сохранена');
 
-  await page.click('#prefs-back'); await page.click('.prefs__nav[data-page="account"]');
+  await page.click('#prefs-back'); await page.click('[data-page="account"]');
   await page.click('details:has(#form-username) > summary'); await page.fill('#form-username-username', 'alice2'); await page.fill('#form-username-password', 'bad');
   await page.click('#form-username button[type=submit]'); await page.waitForSelector('#form-username .form-error:not([hidden])');
   ok((await page.textContent('#form-username .form-error')).includes('Неверный пароль'), 'ошибка смены логина показана');
@@ -99,7 +99,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
   // Список заблокированных в настройках и разблокировка
   await page.click('#btn-back').catch(() => {}); await page.waitForSelector('#nav-profile');
-  await page.click('#nav-settings'); await page.click('.prefs__nav[data-page="privacy"]');
+  await page.click('#nav-settings'); await page.click('[data-page="privacy"]');
   await page.waitForSelector('[data-unblock]');
   await page.click('[data-unblock]'); await page.waitForFunction(() => !document.querySelector('[data-unblock]'));
   ok(be.blocked.size === 0, 'разблокировка из настроек');

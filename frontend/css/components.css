@@ -856,3 +856,31 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .nav { isolation: isolate; }
 .nav__item.is-active { background: transparent; }
 @media (prefers-reduced-motion: reduce) { .nav__pill { transition: none; } }
+
+/* ===== Настройки в стиле Telegram ===== */
+.tg-head { display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: 1.2rem 1rem .6rem; text-align: center; }
+.tg-head .avatar, .tg-head > [class*="avatar"] { width: 6.5rem; height: 6.5rem; }
+.tg-head__name { font-size: 1.3rem; margin-top: .4rem; }
+.tg-head__login { color: var(--color-text-muted); font-size: var(--fs-sm); }
+.tg-section { padding: .4rem 0 .2rem; }
+.tg-section__title { margin: .6rem .9rem .3rem; font-size: var(--fs-sm); font-weight: 600; color: var(--color-accent, #3a9bd9); }
+.tg-list { display: flex; flex-direction: column; border-radius: var(--radius-md); overflow: hidden; background: var(--color-surface-alt); margin: 0 .4rem .6rem; }
+.tg-row { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .7rem .9rem; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tg-row + .tg-row { border-top: 1px solid var(--color-border); }
+.tg-row:hover, .tg-row:active { background: var(--aqua-50); }
+.tg-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tg-row__text b { font-weight: 500; }
+.tg-row__text small { color: var(--color-text-muted); font-size: var(--fs-sm); margin-top: .1rem; }
+.tg-row__chev { color: var(--color-text-muted); }
+.tg-row__mark { color: var(--aqua-teal, #1aa5b5); }
+.tg-row--add b { color: var(--aqua-teal, #1aa5b5); }
+.tg-row--acc .avatar { flex: none; }
+.tg-ico { flex: none; width: 2.2rem; height: 2.2rem; border-radius: .6rem; display: grid; place-items: center; color: #fff; }
+.tg-ico .icon { width: 1.25rem; height: 1.25rem; stroke: #fff; }
+.tg-ico--blue { background: #3d8ee8; }
+.tg-ico--orange { background: #f0a030; }
+.tg-ico--green { background: #3ec05f; }
+.tg-ico--red { background: #ef4f4f; }
+.tg-ico--plus { background: var(--aqua-teal, #1aa5b5); }
+/* Карандаш канала и нижняя панель не лезут поверх открытых окон (кроме самой панели) */
+.app:has(.modal.is-open) .fab-channel { display: none; }

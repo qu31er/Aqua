@@ -33,7 +33,7 @@ const URL = 'http://127.0.0.1:8765/index.html';
 
   /* ---- приватность ---- */
   await page.click('#btn-back').catch(() => {});
-  await page.click('#nav-settings'); await page.click('.prefs__nav[data-page="privacy"]');
+  await page.click('#nav-settings'); await page.click('[data-page="privacy"]');
   ok(await page.locator('#priv-hide_activity').count() === 1, 'есть настройка скрытия активности');
   await page.selectOption('#priv-hide_activity', 'all');
   await page.waitForTimeout(150);
@@ -44,19 +44,19 @@ const URL = 'http://127.0.0.1:8765/index.html';
   ok(be.privPuts.some((p) => p.hide_activity?.mode === 'all'), 'скрытие активности сохранено');
 
   /* ---- аккаунты ---- */
-  await page.click('#prefs-back').catch(() => {}); await page.click('.prefs__nav[data-page="account"]');
+  await page.click('#prefs-back').catch(() => {}); await page.click('[data-page="account"]');
   await page.waitForSelector('#accounts-list .accs__row');
   ok(await page.locator('#accounts-list .accs__row.is-current').count() === 1, 'текущий аккаунт отмечен в списке');
   await page.evaluate(() => localStorage.setItem('aqua.accounts', JSON.stringify([
     { id: 1, username: 'alice', display_name: 'alice', avatar: null, token: 'tok' },
     { id: 9, username: 'zed', display_name: 'Zed', avatar: null, token: 'tok9' }])));
-  await page.click('#prefs-back').catch(() => {}); await page.click('.prefs__nav[data-page="account"]');
+  await page.click('#prefs-back').catch(() => {}); await page.click('[data-page="account"]');
   ok(await page.locator('#accounts-list .accs__row').count() === 2, 'список всех аккаунтов устройства');
   await Promise.all([page.waitForNavigation(), page.click('.accs__row[data-account="9"]')]);
   ok(await page.evaluate(() => localStorage.getItem('aqua.token')) === 'tok9', 'переключение подменило сессию');
   await page.evaluate(() => localStorage.setItem('aqua.token', 'tok'));
   await page.goto(URL); await page.waitForSelector('#chat-list .chat-item');
-  await page.click('#nav-settings'); await page.click('.prefs__nav[data-page="account"]');
+  await page.click('#nav-settings'); await page.click('[data-page="account"]');
   await Promise.all([page.waitForNavigation(), page.click('#account-add')]);
   console.log(await page.evaluate(() => JSON.stringify({t: localStorage.getItem('aqua.token'), p: localStorage.getItem('aqua.prev-token'), h: document.querySelector('#auth-cancel').hidden, url: location.href})));
   await page.waitForSelector('#auth-cancel:not([hidden])', {timeout: 5000});
