@@ -705,7 +705,6 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .picker__gif--saved video, .picker__gif--saved img { max-width: 100%; }
 
 /* ---------- Блок 4: статусы, пересланные, закреп, выделение, черновики ---------- */
-.msg--in .msg__meta { text-align: left; }                      /* время сообщения собеседника — в левом углу */
 .msg__ticks { display: inline-flex; vertical-align: -.2em; margin-left: .25rem; }
 .msg__ticks .icon { width: .95rem; height: .95rem; stroke-width: 2.2; }
 .msg__ticks.is-pending .icon { width: .8rem; height: .8rem; }
@@ -803,3 +802,39 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .notif-ask__card h2 { margin: 0; font-size: 1.15rem; }
 .notif-ask__card p { margin: 0 0 .4rem; color: var(--color-text-muted); }
 @media (min-width: 700px) { .notif-ask { align-items: center; } }
+
+/* ===== Итерация: выделение, время/галочки, нижняя панель ===== */
+/* Никакого системного синего выделения: текст выделяется только у выделенного сообщения */
+::selection { background: transparent; }
+.msg { -webkit-user-select: none; user-select: none; }
+.msg.is-selected .msg__text::selection { background: color-mix(in srgb, var(--aqua-teal) 35%, transparent); }
+.msg.is-selected .msg__text { -webkit-user-select: text; user-select: text; }
+
+/* Время справа, галочки слева от него (у всех сообщений) */
+.msg__meta { display: block; text-align: right; white-space: nowrap; }
+.msg__ticks { margin-left: 0; margin-right: .2rem; }
+
+/* Выделение в стиле Telegram: кружок слева у каждого сообщения, у выбранных — заполненный с галочкой */
+#app[data-selecting="true"] #messages { padding-left: 2.75rem; }
+#app[data-selecting="true"] #messages .msg { position: relative; overflow: visible; }
+#app[data-selecting="true"] #messages .msg::after {
+  content: ''; position: absolute; left: -2.1rem; top: 50%; width: 1.35rem; height: 1.35rem; margin-top: -.675rem; z-index: 2;
+  box-sizing: border-box; border: 2px solid var(--color-text-muted); border-radius: 50%; background: transparent; pointer-events: none; }
+#app[data-selecting="true"] #messages .msg.is-selected::after {
+  background: var(--aqua-teal) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 80% no-repeat;
+  border-color: var(--aqua-teal); }
+#app[data-selecting="true"] #messages .msg.is-selected::before {
+  content: ''; position: absolute; top: -.25rem; bottom: -.25rem; left: -3rem; right: -.5rem; z-index: 0; pointer-events: none;
+  background: color-mix(in srgb, var(--aqua-teal) 16%, transparent); border-radius: .5rem; }
+
+/* Нижняя панель: поверх всего, скрыта только внутри открытого чата */
+.nav { position: fixed; z-index: 900; left: .75rem; right: .75rem; bottom: calc(.6rem + var(--safe-bottom)); }
+.app[data-chat-open="true"] .nav { display: none; }
+/* Пузырь: время встаёт в правый нижний угол последней строки (как в Telegram), галочки левее времени */
+.msg__bubble { display: flow-root; min-width: 4.25rem; }
+.msg__meta { float: right; margin: .35rem 0 -.1rem .6rem; font-size: .6875rem; line-height: 1; }
+.msg--sticker .msg__meta { float: none; margin: .1rem 0 0; }
+/* На телефоне закрытый чат не должен перекрывать список и нижнюю панель */
+@media (max-width: 47.99rem) { .app[data-chat-open="false"] .chat { display: none; } }
+/* На компьютере панель остаётся внутри боковой колонки, на телефоне — поверх всего */
+@media (min-width: 48rem) { .nav { position: absolute; z-index: 3; } }

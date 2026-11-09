@@ -95,8 +95,8 @@ function messageNode(m, opts = {}) {
     m.media ? mediaNode(m) : null,
     m.text ? el('p', { class: 'msg__text', text: m.text }) : null,
     el('span', { class: 'msg__meta' },
-      (m.edited_at ? 'изменено · ' : '') + timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : ''),
-      mine && !opts.failed ? ticksNode(m, opts) : null));
+      mine && !opts.failed ? ticksNode(m, opts) : null,                 // галочки — слева от времени
+      (m.edited_at ? 'изменено · ' : '') + timeHM(m.created_at) + (opts.failed ? ' · не отправлено, нажмите, чтобы повторить' : '')));
   const node = el('article', {
     class: `msg msg--${mine ? 'out' : 'in'}${m.meta?.sticker ? ' msg--sticker' : ''}${m.media && !m.meta?.sticker && (m.kind === 'image' || m.kind === 'video') ? ' msg--media' : ''}${opts.animate ? ' is-new' : ''}${opts.pending ? ' is-pending' : ''}${opts.failed ? ' is-failed' : ''}`,
     dataset: { id: m.id, ...(m.clientId ? { clientId: m.clientId } : {}) },

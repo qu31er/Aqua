@@ -1,4 +1,4 @@
-// Тест блока 4: выделение сообщений, действия, закреп, пересылка, черновики, статусы (галочки), время слева.
+// Тест блока 4: выделение сообщений, действия, закреп, пересылка, черновики, статусы (галочки), время справа.
 const { chromium } = require('playwright'); const { setup } = require('./mock.js');
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 const URL = 'http://127.0.0.1:8765/index.html';
@@ -23,7 +23,7 @@ const URL = 'http://127.0.0.1:8765/index.html';
   push({ type: 'read', chat_id: 1, user_id: 2, up_to: myId }); await page.waitForTimeout(150);
   ok(await page.locator('#messages .msg--out .msg__ticks').last().getAttribute('class').then((c) => c.includes('is-read')), 'прочитано: две галочки');
   ok(await page.locator('#messages .msg--out .msg__ticks use').last().getAttribute('href') === '#i-checks', 'значок двух галочек');
-  ok(await page.locator('#messages .msg--in .msg__meta').last().evaluate((e) => getComputedStyle(e).textAlign) === 'left', 'время собеседника — слева');
+  ok(await page.locator('#messages .msg--in .msg__meta').last().evaluate((e) => getComputedStyle(e).float) === 'right', 'время собеседника — справа (по запросу)');
   await page.context().setOffline(true);
   await page.fill('#message-input', 'без сети'); await page.click('#btn-send');
   await page.waitForSelector('#messages .msg.is-pending .msg__ticks.is-pending');

@@ -150,6 +150,7 @@ const { setup } = require('./mock.js');
   await page.fill('#login-password','secret123');
   await page.click('#form-login button[type=submit]');
   await page.waitForSelector('#chat-list .chat-item');
+  if (await page.locator('#nav').isHidden()) await page.click('#btn-back').catch(() => {});
   await page.click('#nav-profile'); await page.waitForTimeout(300);
   ok(await page.locator('#modal-settings.is-open').count()===1,'меню открывает настройки (модальное окно)');
   ok((await page.textContent('#profile-login'))==='@alice','в профиле логин с @');

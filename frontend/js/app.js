@@ -44,6 +44,8 @@ import { rememberAccount, forgetAccount, listAccounts, switchAccount, startAddAc
 import { openEditor } from './editor/editor-modal.js';
 
 const app = $('#app');
+// Текст сообщения выделяется только когда выделено само сообщение (режим выделения).
+document.addEventListener('selectstart', (e) => { const n = e.target?.nodeType === 1 ? e.target : e.target?.parentElement; if (n?.closest('.msg') && !n.closest('.msg.is-selected')) e.preventDefault(); });
 const socket = new AquaSocket(getToken);
 const isMobileLayout = () => window.matchMedia('(max-width: 47.99rem)').matches;
 
