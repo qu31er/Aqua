@@ -213,6 +213,8 @@ def init_db(path: Path = DB_PATH) -> None:
             conn.execute("ALTER TABLE chats ADD COLUMN is_channel INTEGER NOT NULL DEFAULT 0")
         if "username" not in ccols:
             conn.execute("ALTER TABLE chats ADD COLUMN username TEXT")
+        if "description" not in ccols:
+            conn.execute("ALTER TABLE chats ADD COLUMN description TEXT NOT NULL DEFAULT ''")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_username ON chats(username)")
         # Блок 4: пересланные, закреплённое сообщение, прочитанность
         if "fwd" not in cols:

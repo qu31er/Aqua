@@ -222,6 +222,7 @@ def serialize_chat(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> di
         "id": chat["id"],
         "type": "channel" if chat["is_channel"] else chat["type"],
         "username": chat["username"],
+        "description": chat["description"] or "",
         "can_post": not chat["is_channel"] or _is_owner(conn, chat_id, viewer_id),
         "title": title,
         "created_at": chat["created_at"],
@@ -314,6 +315,22 @@ def create_channel(conn: sqlite3.Connection, me: int, title: str, username: str)
     conn.execute("INSERT INTO chat_members (chat_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
                  (cur.lastrowid, me, ts))
     return cur.lastrowid
+
+
+def update_channel(conn: sqlite3.Connection, chat_id: int, me: int, title: str | None, description: str | None) -> None:
+    """Правка канала — только администратор канала."""
+    chat = conn.execute("SELECT is_channel FROM chats WHERE id = ?", (chat_id,)).fetchone()
+    if chat is None or not chat["is_channel"]:
+        raise ServiceError(404, "Канал не найден.")
+    if not _is_owner(conn, chat_id, me):
+        raise ServiceError(403, "Редактировать канал может только администратор.")
+    if title is not None:
+        if not title.strip():
+            raise ServiceError(400, "Название не может быть пустым.")
+        conn.execute("UPDATE chats SET title = ? WHERE id = ?", (title.strip(), chat_id))
+    if description is not None:
+        conn.execute("UPDATE chats SET description = ? WHERE id = ?", (description.strip()[:500], chat_id))
+    conn.commit()
 
 
 def require_can_post(conn: sqlite3.Connection, chat_id: int, sender_id: int) -> None:

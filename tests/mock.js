@@ -133,13 +133,19 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
     const mu = path.match(/^\/users\/(\d+)\/profile$/);
     if (mu) { const id = +mu[1]; return json(200, { ...be.carl, id, bio: 'Дизайнер. Люблю море.', tracks: [], is_contact: Boolean(be.contacts?.has(id)), is_blocked: Boolean(be.blocked?.has(id)) }); }
     if (path === '/auth/me') return json(200, be.me);
+    let m;
     if (path === '/chats' && req.method() === 'GET') return json(200, be.chats());
+    if ((m = path.match(/^\/chats\/(\d+)$/)) && req.method() === 'PATCH') {
+      const d = req.postDataJSON(); const ch = (be.created || []).find((c) => c.id === +m[1]);
+      if (d.title !== undefined) ch.title = d.title; if (d.description !== undefined) ch.description = d.description;
+      return json(200, { ...ch, members: [be.me], can_post: true });
+    }
     if (path === '/chats' && req.method() === 'POST' && req.postDataJSON().type === 'channel') {
       const d = req.postDataJSON(); const ch = { id: 77, type: 'channel', title: d.title, username: d.username, can_post: true, created_at: new Date().toISOString(),
         members: [be.me], last_message: null, reads: {}, pinned: null };
       (be.created ??= []).push(ch); return json(201, ch);
     }
-    let m = path.match(/^\/chats\/(\d+)\/messages$/);
+    m = path.match(/^\/chats\/(\d+)\/messages$/);
     if (m && req.method() === 'GET') {
       const before = +u.searchParams.get('before_id') || Infinity, lim = +u.searchParams.get('limit');
       return json(200, (be.msgs[m[1]] || []).filter((x) => x.id < before).slice(-lim));

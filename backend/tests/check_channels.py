@@ -35,3 +35,10 @@ except ServiceError as e: assert e.status == 409
 try: services.create_channel(c, b, "x", "ab"); raise SystemExit("bad name allowed")
 except ServiceError as e: assert e.status == 400
 print("channels OK")
+services.update_channel(c, ch, a, "Новое имя", "Описание канала")
+row = c.execute("SELECT title, description FROM chats WHERE id=?", (ch,)).fetchone()
+assert row[0] == "Новое имя" and row[1] == "Описание канала"
+assert services.serialize_chat(c, ch, b)["description"] == "Описание канала"
+try: services.update_channel(c, ch, b, "hack", None); raise SystemExit("subscriber edited")
+except ServiceError as e: assert e.status == 403
+print("channel edit OK")

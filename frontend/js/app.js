@@ -38,6 +38,7 @@ import { initLightbox } from './ui/lightbox.js';
 import { initSelection } from './ui/selection.js';
 import { forwardMessages } from './ui/media-actions.js';
 import { askDelete, askText } from './ui/dialogs.js';
+import { initChannelProfile } from './ui/channel-profile.js';
 import { getDraft, setDraft } from './drafts.js';
 import { initNotifications, askPermissionOnEntry, notifyMessage } from './notify.js';
 import { rememberAccount, forgetAccount, listAccounts, switchAccount, startAddAccount, hasPrevSession, cancelAddAccount, clearPrev } from './accounts.js';
@@ -130,7 +131,7 @@ function logout(message) {
   resetState();
   connectedOnce = false; outageShown = false; renderConn();
   searchQuery = ''; foundUsers = null; $('#search').value = '';
-  closeModal('modal-settings'); closeModal('modal-prefs'); closeModal('modal-peer'); closeModal('modal-contacts');
+  closeModal('modal-settings'); closeModal('modal-prefs'); closeModal('modal-peer'); closeModal('modal-contacts'); closeModal('modal-channel');
   applyPrefs({}, { cache: false });
   stopMedia();
   app.dataset.chatOpen = 'false';
@@ -663,7 +664,12 @@ initReactions({
 
 $('#btn-back').addEventListener('click', goBack);
 $('#profile-settings-btn').addEventListener('click', () => { settings.render(); openModal('modal-prefs'); });
-const openPeer = () => { const p = peerOf(activeChat() ?? { type: '' }); if (p) peerProfile.open(p.id); };
+const channelProfile = initChannelProfile({ onChange: (c) => { upsertChat(c); renderList(); if (state.activeChatId === c.id) renderStatus(c); } });
+const openPeer = () => {
+  const c = activeChat();
+  if (c?.type === 'channel') return channelProfile.open(c);
+  const p = peerOf(c ?? { type: '' }); if (p) peerProfile.open(p.id);
+};
 $('#chat-peer').addEventListener('click', openPeer);
 $('#chat-peer').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPeer(); } });
 $('#messages').addEventListener('click', (e) => {
@@ -673,7 +679,21 @@ $('#messages').addEventListener('click', (e) => {
 $('#nav-profile').addEventListener('click', () => { ownViewer.close(); profile.render(); openModal('modal-settings'); });
 $('#nav-settings').addEventListener('click', () => { settings.render(); openModal('modal-prefs'); });
 $('#nav-contacts').addEventListener('click', () => { contacts.render(); openModal('modal-contacts'); });
-$('#nav-chats').addEventListener('click', () => { for (const m of ['modal-settings', 'modal-prefs', 'modal-contacts', 'modal-peer']) closeModal(m); $('#chat-list').scrollTo({ top: 0, behavior: 'smooth' }); });
+/* Выделение выбранной вкладки нижней панели плавно переезжает к нажатой кнопке */
+const navPill = $('#nav-pill');
+function moveNavPill(btn) {
+  if (!btn || !navPill) return;
+  navPill.style.width = `${btn.offsetWidth}px`;
+  navPill.style.transform = `translateX(${btn.offsetLeft}px)`;
+}
+function setNavActive(btn) {
+  document.querySelectorAll('.nav__item').forEach((b) => { const on = b === btn; b.classList.toggle('is-active', on); on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); });
+  moveNavPill(btn);
+}
+document.querySelectorAll('.nav__item').forEach((b) => b.addEventListener('click', () => setNavActive(b)));
+window.addEventListener('resize', () => moveNavPill(document.querySelector('.nav__item.is-active')));
+requestAnimationFrame(() => moveNavPill(document.querySelector('.nav__item.is-active')));
+$('#nav-chats').addEventListener('click', () => { for (const m of ['modal-settings', 'modal-prefs', 'modal-contacts', 'modal-peer', 'modal-channel']) closeModal(m); $('#chat-list').scrollTo({ top: 0, behavior: 'smooth' }); });
 $('#btn-logout').addEventListener('click', () => logout());
 
 initModals();

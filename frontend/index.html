@@ -284,6 +284,7 @@
 
       <!-- Нижнее меню -->
       <nav class="nav" id="nav" aria-label="Разделы">
+        <span class="nav__pill" id="nav-pill" aria-hidden="true"></span>
         <button class="nav__item is-active" type="button" id="nav-chats" aria-current="page"><svg class="icon"><use href="#i-chats"/></svg><span>Чаты</span></button>
         <button class="nav__item" type="button" id="nav-contacts"><svg class="icon"><use href="#i-contacts"/></svg><span>Контакты</span></button>
         <button class="nav__item" type="button" id="nav-settings"><svg class="icon"><use href="#i-settings"/></svg><span>Настройки</span></button>
@@ -486,6 +487,29 @@
         <div class="profile__info">
           <div class="profile__row"><span class="profile__label">О себе</span><p class="profile__bio" id="peer-bio"></p></div>
           <div class="profile__row"><span class="profile__label">Логин</span><p class="profile__login" id="peer-login"></p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Профиль канала: подписчики видят описание и ссылку, администратор — карандаш для правки -->
+<div class="modal" id="modal-channel" role="dialog" aria-modal="true" aria-labelledby="channel-title">
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__dialog">
+    <header class="modal__header">
+      <h2 class="modal__title" id="channel-title">Канал</h2>
+      <button class="btn-icon" type="button" id="channel-edit" aria-label="Редактировать канал" hidden><svg class="icon"><use href="#i-edit"/></svg></button>
+      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="modal__body scroll">
+      <div class="profile" id="channel-view">
+        <div class="profile__avatar" id="channel-big-avatar"></div>
+        <h3 class="profile__name" id="channel-big-name"></h3>
+        <p class="profile__status" id="channel-subs"></p>
+        <div class="profile__info">
+          <div class="profile__row"><span class="profile__label">Описание</span><p class="profile__bio" id="channel-desc"></p></div>
+          <div class="profile__row"><span class="profile__label">Ссылка</span><p class="profile__login" id="channel-link"></p></div>
         </div>
       </div>
     </div>

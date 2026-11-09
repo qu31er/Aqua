@@ -59,6 +59,7 @@ export const api = {
   me:       () => request('/auth/me'),
   searchUsers: (q) => request(`/users/search?q=${encodeURIComponent(q)}`),
   listChats: () => request('/chats'),
+  updateChannel: (id, patch) => request(`/chats/${id}`, { method: 'PATCH', json: patch }),
   createChannel: (title, username) => request('/chats', { method: 'POST', json: { type: 'channel', title, username } }),
   createDirectChat: (username) => request('/chats', { method: 'POST', json: { type: 'direct', username } }),
   getMessages: (chatId, beforeId, limit) =>

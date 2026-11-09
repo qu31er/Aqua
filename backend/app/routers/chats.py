@@ -145,6 +145,21 @@ class PinIn(BaseModel):
     message_id: int | None = None
 
 
+class ChannelPatch(BaseModel):
+    title: str | None = Field(None, max_length=64)
+    description: str | None = Field(None, max_length=500)
+
+
+@router.patch("/chats/{chat_id}")
+async def patch_channel(chat_id: int, data: ChannelPatch, user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
+    """Название и описание канала (только администратор)."""
+    try:
+        services.update_channel(conn, chat_id, user["id"], data.title, data.description)
+    except ServiceError as e:
+        _raise(e)
+    return services.serialize_chat(conn, chat_id, user["id"])
+
+
 @router.put("/chats/{chat_id}/pin")
 async def pin_message(chat_id: int, data: PinIn, user: sqlite3.Row = Depends(get_current_user), conn: sqlite3.Connection = Depends(get_db)):
     """Закрепить сообщение в чате (message_id=null — открепить). Событие `pinned` получают все участники."""
