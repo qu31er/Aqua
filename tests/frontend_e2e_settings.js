@@ -67,7 +67,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.fill('#form-password-again', 'newpass123'); await page.click('#form-password button[type=submit]');
   await page.waitForFunction(() => document.querySelector('#form-password').closest('details').open === false);
   ok(be.pwPuts.at(-1).new_password === 'newpass123', 'пароль отправлен на сервер');
-  await page.click('#modal-prefs [data-close-modal].btn-icon');
+  await page.click('#nav-chats');
 
   // Тема сохраняется в кэше и применяется при перезагрузке
   await page.reload(); await page.waitForSelector('#chat-list .chat-item');

@@ -62,7 +62,7 @@ const addPhoto = async (page) => {
   ok(true, 'потянув вниз в профиле, открылась карусель');
   await page.click('#avv-close'); await page.waitForSelector('#avatar-viewer', { state: 'detached' });
   ok(await page.locator('#modal-settings.is-open').count() === 1, 'карусель свёрнута, профиль открыт');
-  await page.click('#modal-settings .btn-icon[data-close-modal]');
+  await page.click('#nav-chats');
 
   // Чужой профиль: нет меню, жест работает
   await page.click('.chat-item[data-chat-id="1"]');
