@@ -223,6 +223,7 @@ def serialize_chat(conn: sqlite3.Connection, chat_id: int, viewer_id: int) -> di
         "type": "channel" if chat["is_channel"] else chat["type"],
         "username": chat["username"],
         "description": chat["description"] or "",
+        "roles": {str(r["user_id"]): r["role"] for r in conn.execute("SELECT user_id, role FROM chat_members WHERE chat_id = ?", (chat_id,))},
         "can_post": not chat["is_channel"] or _is_owner(conn, chat_id, viewer_id),
         "title": title,
         "created_at": chat["created_at"],

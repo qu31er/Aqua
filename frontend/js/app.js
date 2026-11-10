@@ -676,9 +676,12 @@ $('#messages').addEventListener('click', (e) => {
   const a = e.target.closest('.msg__author[data-user-id]');
   if (a && Number(a.dataset.userId) !== state.user.id) peerProfile.open(Number(a.dataset.userId));
 });
-$('#nav-profile').addEventListener('click', () => { ownViewer.close(); profile.render(); openModal('modal-settings'); });
-$('#nav-settings').addEventListener('click', () => { settings.render(); openModal('modal-prefs'); });
-$('#nav-contacts').addEventListener('click', () => { contacts.render(); openModal('modal-contacts'); });
+/* Вкладки нижней панели — страницы: переключаются между собой, без крестика и подложки */
+const TABS = ['modal-settings', 'modal-prefs', 'modal-contacts'];
+function openTab(id) { for (const t of TABS) if (t !== id) closeModal(t); openModal(id); }
+$('#nav-profile').addEventListener('click', () => { ownViewer.close(); profile.render(); openTab('modal-settings'); });
+$('#nav-settings').addEventListener('click', () => { settings.render(); openTab('modal-prefs'); });
+$('#nav-contacts').addEventListener('click', () => { contacts.render(); openTab('modal-contacts'); });
 /* Выделение выбранной вкладки нижней панели плавно переезжает к нажатой кнопке */
 const navPill = $('#nav-pill');
 function moveNavPill(btn) {

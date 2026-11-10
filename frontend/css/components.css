@@ -884,3 +884,43 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .tg-ico--plus { background: var(--aqua-teal, #1aa5b5); }
 /* Карандаш канала и нижняя панель не лезут поверх открытых окон (кроме самой панели) */
 .app:has(.modal.is-open) .fab-channel { display: none; }
+
+/* Вкладки нижней панели — полноэкранные страницы на телефоне; панель остаётся снизу */
+.has-modal .fab-channel { display: none; }
+@media (max-width: 47.99rem) {
+  .modal.tab-page { padding: 0; }
+  .modal.tab-page .modal__backdrop { display: none; }
+  .modal.tab-page .modal__dialog { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; }
+  .modal.tab-page .modal__header [data-close-modal] { display: none; }
+}
+/* Содержимое вкладки не прячется под нижней панелью: можно долистать до конца */
+.modal.tab-page .modal__body { padding-bottom: calc(6rem + var(--safe-bottom, 0px)); }
+/* Нижний отступ страницы вкладки — у самого окна, чтобы последний пункт не уходил под панель */
+@media (max-width: 47.99rem) { .modal.tab-page .modal__dialog { padding-bottom: calc(5.5rem + var(--safe-bottom, 0px)); box-sizing: border-box; } }
+
+/* ===== Страница канала (в стиле Telegram) ===== */
+.channel-page { background: var(--color-surface); }
+.channel-bar { display: flex; align-items: center; gap: .25rem; }
+.channel-bar .modal__title { flex: 1; text-align: left; margin: 0 .25rem; font-size: 1.1rem; }
+.channel-view { display: flex; flex-direction: column; gap: 1rem; padding: .5rem 0 1rem; }
+.channel-view[hidden] { display: none; }
+.channel-head { display: flex; flex-direction: column; align-items: center; gap: .3rem; text-align: center; padding: .5rem 0 .2rem; }
+.channel-head .profile__avatar { width: 6.5rem; height: 6.5rem; }
+.channel-head__name { margin: .4rem 0 0; font-size: 1.3rem; font-weight: 600; }
+.channel-head__sub { margin: 0; color: var(--color-text-muted); font-size: var(--fs-sm); }
+.channel-info { display: flex; flex-direction: column; gap: .8rem; padding: .3rem 1rem; }
+.channel-info__row { display: flex; flex-direction: column; gap: .15rem; }
+.channel-info__label { font-size: var(--fs-sm); color: var(--color-text-muted); }
+.channel-info__value { margin: 0; white-space: pre-wrap; word-break: break-word; color: var(--color-accent, #3a9bd9); }
+.channel-info__value.is-empty { color: var(--color-text-muted); font-style: italic; }
+.channel-list { display: flex; flex-direction: column; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.channel-list__row { display: flex; justify-content: space-between; align-items: center; padding: .85rem 1rem; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.channel-list__row + .channel-list__row { border-top: 1px solid var(--color-border); }
+.channel-list__row b { color: var(--color-text-muted); font-weight: 400; }
+.channel-people { list-style: none; margin: 0; padding: 0 1rem; display: flex; flex-direction: column; gap: .6rem; }
+.channel-people[hidden] { display: none; }
+.channel-person { display: flex; align-items: center; gap: .7rem; }
+.channel-person__text { display: flex; flex-direction: column; }
+.channel-person__text small { color: var(--color-text-muted); }
+#channel-edit-form { display: flex; flex-direction: column; gap: 1rem; padding: .8rem 1rem; }
+#channel-edit-form[hidden] { display: none; }

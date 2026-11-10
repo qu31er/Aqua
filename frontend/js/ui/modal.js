@@ -14,6 +14,7 @@ export function openModal(id) {
   if (!openId) lastFocus = document.activeElement;      // вложенные окна не затирают точку возврата фокуса
   modal.classList.add('is-open');
   openId = id;
+  document.body.classList.add('has-modal');
   // Фокус в окно после начала анимации (visibility меняется мгновенно при открытии)
   requestAnimationFrame(() => modal.querySelector('button, input, [tabindex]')?.focus());
 }
@@ -24,6 +25,7 @@ export function closeModal(id = openId) {
   if (!modal?.classList.contains('is-open')) return;
   modal.classList.remove('is-open');
   if (openId === id) openId = null;
+  if (!openId) document.body.classList.remove('has-modal');
   lastFocus?.focus?.();
   closeHooks.get(id)?.();
 }

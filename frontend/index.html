@@ -402,7 +402,7 @@
 
 <!-- ============================ Модальные окна ============================ -->
 <!-- Открытие/закрытие: JS переключает класс .is-open на .modal -->
-<div class="modal" id="modal-settings" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title">
+<div class="modal tab-page" data-tab="modal-settings" id="modal-settings" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title">
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__dialog">
     <header class="modal__header">
@@ -454,7 +454,7 @@
 </div>
 
 <!-- Настройки -->
-<div class="modal" id="modal-prefs" role="dialog" aria-modal="true" aria-labelledby="prefs-title">
+<div class="modal tab-page" data-tab="modal-prefs" id="modal-prefs" role="dialog" aria-modal="true" aria-labelledby="prefs-title">
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__dialog">
     <header class="modal__header">
@@ -493,31 +493,45 @@
   </div>
 </div>
 
-<!-- Профиль канала: подписчики видят описание и ссылку, администратор — карандаш для правки -->
-<div class="modal" id="modal-channel" role="dialog" aria-modal="true" aria-labelledby="channel-title">
+<!-- Профиль канала: страница. Подписчикам — описание, ссылка и списки; администратору — карандаш справа сверху и «Настройки канала» -->
+<div class="modal tab-page page-only" id="modal-channel" role="dialog" aria-modal="true" aria-labelledby="channel-title">
   <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__dialog">
-    <header class="modal__header">
+  <div class="modal__dialog channel-page">
+    <header class="modal__header channel-bar">
+      <button class="btn-icon" type="button" id="channel-back" aria-label="Назад"><svg class="icon"><use href="#i-back"/></svg></button>
       <h2 class="modal__title" id="channel-title">Канал</h2>
       <button class="btn-icon" type="button" id="channel-edit" aria-label="Редактировать канал" hidden><svg class="icon"><use href="#i-edit"/></svg></button>
-      <button class="btn-icon icon-anim-turn" type="button" data-close-modal aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+      <button class="btn-icon" type="button" id="channel-save" aria-label="Сохранить" hidden><svg class="icon"><use href="#i-check"/></svg></button>
     </header>
     <div class="modal__body scroll">
-      <div class="profile" id="channel-view">
-        <div class="profile__avatar" id="channel-big-avatar"></div>
-        <h3 class="profile__name" id="channel-big-name"></h3>
-        <p class="profile__status" id="channel-subs"></p>
-        <div class="profile__info">
-          <div class="profile__row"><span class="profile__label">Описание</span><p class="profile__bio" id="channel-desc"></p></div>
-          <div class="profile__row"><span class="profile__label">Ссылка</span><p class="profile__login" id="channel-link"></p></div>
+      <div class="channel-view" id="channel-view">
+        <div class="channel-head">
+          <div class="profile__avatar" id="channel-big-avatar"></div>
+          <h3 class="channel-head__name" id="channel-big-name"></h3>
+          <p class="channel-head__sub" id="channel-subs"></p>
         </div>
+        <div class="channel-info">
+          <div class="channel-info__row"><span class="channel-info__label">Ссылка</span><p class="channel-info__value" id="channel-link"></p></div>
+          <div class="channel-info__row"><span class="channel-info__label">Описание</span><p class="channel-info__value" id="channel-desc"></p></div>
+        </div>
+        <div class="channel-list">
+          <button class="channel-list__row" type="button" id="channel-open-subs"><span>Подписчики</span><b id="channel-subs-count"></b></button>
+          <button class="channel-list__row" type="button" id="channel-open-admins"><span>Администраторы</span><b id="channel-admins-count"></b></button>
+          <button class="channel-list__row channel-only-admin" type="button" id="channel-open-settings" hidden><span>Настройки канала</span></button>
+        </div>
+        <ul class="channel-people" id="channel-people" hidden></ul>
       </div>
+      <form class="channel-view" id="channel-edit-form" hidden>
+        <label class="field"><span class="field__label">Название</span><input class="field__input" id="channel-title-input" maxlength="64" required></label>
+        <label class="field"><span class="field__label">Описание</span><textarea class="field__input" id="channel-desc-input" rows="4" maxlength="500" placeholder="О чём канал"></textarea></label>
+        <div class="channel-info"><div class="channel-info__row"><span class="channel-info__label">Тип канала</span><p class="channel-info__value">Публичный, ссылка: <span id="channel-type-link"></span></p></div></div>
+      </form>
     </div>
   </div>
 </div>
 
 <!-- Контакты -->
-<div class="modal" id="modal-contacts" role="dialog" aria-modal="true" aria-labelledby="contacts-title">
+<div class="modal tab-page" data-tab="modal-contacts" id="modal-contacts" role="dialog" aria-modal="true" aria-labelledby="contacts-title">
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__dialog">
     <header class="modal__header">
