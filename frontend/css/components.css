@@ -990,7 +990,7 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 #app .msg--out .msg__bubble { background: var(--glass-out); }
 
 /* Стеклянные блоки-разделители: группы строк и полей в окнах, настройках и каналах */
-.tg-list, .channel-list, .channel-info, .accs, .channel-people, .field, .pick, .notif-ask__card,
+.tg-list, .channel-list, .channel-info, .accs, .channel-people, .pick, .notif-ask__card,
 #channel-edit-form .channel-info, .priv, .prefs__group {
   background: var(--glass-fill);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -1020,3 +1020,12 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 /* Редактор фото/видео — полноэкранный: нижняя панель не перекрывает его кнопки */
 .app:has(#modal-editor.is-open) .nav, .app:has(#modal-editor.is-open) .fab-channel { display: none; }
 #modal-editor.modal--editor { z-index: 1000; }
+
+/* Экран входа по почте */
+.auth__hint { margin: 0 0 1rem; text-align: center; color: var(--color-text-muted); font-size: var(--fs-sm, .9rem); line-height: 1.4; word-break: break-word; }
+.auth__row { display: flex; gap: .6rem; margin-top: .8rem; }
+.auth__row .btn { flex: 1; min-width: 0; padding-inline: .5rem; font-size: .9rem; }
+.input--code { text-align: center; font-size: 1.6rem; letter-spacing: .5em; padding-left: .5em; font-variant-numeric: tabular-nums; }
+#form-email, #form-code, #form-name { display: flex; flex-direction: column; gap: .9rem; }
+#form-email[hidden], #form-code[hidden], #form-name[hidden] { display: none; }
+#form-code .field, #form-name .field, #form-email .field { margin: 0; }

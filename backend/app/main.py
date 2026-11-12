@@ -13,8 +13,8 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .database import init_db
-from .routers import auth
-from . import email_auth, chats, contacts, gifs, media, message_ops, profile, reactions, stickers, ws
+from . import email_auth
+from .routers import auth, chats, contacts, gifs, media, message_ops, profile, reactions, stickers, ws
 
 
 @asynccontextmanager
