@@ -4,7 +4,17 @@
    Механика окон (data-screen, data-chat-open, .is-open) остаётся прежней.
    ========================================================================== */
 
+/* ---------- Шрифт: Inter (латиница + кириллица), лицензия OFL — assets/fonts/LICENSE-Inter.txt.
+   Свой шрифт нужен, чтобы начертания 500/600/700 выглядели одинаково на iOS, Android и десктопе:
+   у системных шрифтов (Roboto, SF, Segoe) нет части весов, и браузер подменяет их ближайшими. */
+@font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: swap; src: url("../assets/fonts/Inter-Regular.woff") format("woff"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: swap; src: url("../assets/fonts/Inter-Medium.woff") format("woff"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: swap; src: url("../assets/fonts/Inter-SemiBold.woff") format("woff"); }
+@font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: swap; src: url("../assets/fonts/Inter-Bold.woff") format("woff"); }
+
 :root {
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
   /* Более воздушные оттенки неба */
   --aqua-mist: #F3F9FF;
   --aqua-sky-soft: #DCEEFF;
@@ -117,21 +127,11 @@
 }
 
 /* ---------- Шапка и окно диалога ---------- */
-.chat__header {
-  background: rgba(255, 255, 255, .86);
-  box-shadow: 0 1px 0 var(--color-border), 0 4px 16px rgba(20, 108, 164, .05);
-}
 .chat__messages {
   background:
     radial-gradient(44rem 22rem at 100% 0%, rgba(162, 209, 255, .45), transparent 70%),
     radial-gradient(40rem 26rem at 0% 100%, rgba(18, 144, 191, .10), transparent 70%),
     var(--color-bg);
-}
-.chat__composer {
-  background: rgba(255, 255, 255, .92);
-  -webkit-backdrop-filter: blur(.75rem);
-  backdrop-filter: blur(.75rem);
-  box-shadow: 0 -1px 0 var(--color-border);
 }
 .composer__input {
   background: #fff;
@@ -144,12 +144,7 @@
 }
 
 /* ---------- Сообщения ---------- */
-.msg__bubble { box-shadow: 0 1px 2px rgba(20, 108, 164, .08), 0 2px 8px rgba(20, 108, 164, .05); }
-.msg--out .msg__bubble {
-  background: linear-gradient(135deg, #2A9CCB, #1B7FB5);
-  box-shadow: 0 4px 14px rgba(27, 127, 181, .22);
-}
-.msg--in .msg__bubble { background: #fff; }
+/* Пузыри оформляются стеклянной системой в components.css */
 .day-sep {
   background: rgba(255, 255, 255, .75);
   color: var(--color-text-muted);
@@ -189,14 +184,8 @@
 }
 
 /* ---------- Нижнее меню: стеклянная пилюля ---------- */
-.nav {
-  border-radius: 2rem;
-  background: rgba(255, 255, 255, .82);
-  border: 1px solid rgba(221, 235, 248, .9);
-  box-shadow: 0 10px 30px rgba(20, 108, 164, .14);
-}
-.nav__item { transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur-fast) var(--ease); }
-.nav__item.is-active { background: var(--aqua-100); color: var(--aqua-navy); }
+/* Вид панели и активной вкладки задаёт «стеклянный» блок в components.css (.nav__pill) — не переопределяем */
+.nav__item { transition: color var(--dur) var(--ease), transform var(--dur-fast) var(--ease); }
 
 /* ---------- Переключатели и ползунки ---------- */
 .range input[type=range]::-webkit-slider-thumb { background: #1B7FB5; }
@@ -224,6 +213,58 @@
 /* ---------- Прокрутка ---------- */
 .scroll { scrollbar-color: #B9DCF5 transparent; }
 .scroll::-webkit-scrollbar-thumb { background: #B9DCF5; }
+
+/* ==========================================================================
+   Типографика: веса и защита от вылезания текста
+   Иерархия: 400 — текст, 500 — подписи и вторичные заголовки,
+   600 — заголовки и имена, 700 — только бренд «Aqua».
+   ========================================================================== */
+body {
+  font-weight: 400;
+  font-feature-settings: "kern", "calt";
+  text-rendering: optimizeLegibility;
+  letter-spacing: .003em;
+}
+
+/* Заголовки и имена: 600 вместо 700 — аккуратнее и легче на кириллице */
+.modal__title, .peer__name, .profile__name, .tg-head__name, .channel-head__name,
+.chat-item__name, .contacts__name, .dialog__title { font-weight: 600; letter-spacing: -.005em; }
+.auth__title, .sidebar__brand span { font-weight: 700; letter-spacing: -.01em; }
+
+/* Подписи и мелкий текст: 500 */
+.field__label, .tabs__tab, .nav__item, .profile__tile, .day-sep, .picker__tab,
+.msg__author, button.msg__author, .tg-section__title, .prefs__title, .list-heading { font-weight: 500; }
+.nav__item.is-active { font-weight: 600; }
+.badge, .avatar, .reaction__more { font-weight: 600; }
+.list-heading, .prefs__title { letter-spacing: .05em; }
+
+/* Любое длинное слово переносится, а не вылезает за край */
+.modal__title, .peer__name, .profile__name, .profile__login, .tg-head__name, .tg-head__login,
+.channel-head__name, .channel-head__sub, .channel-info__value, .contacts__name,
+.tg-row__text, .prefs__nav, .dialog__title, .auth__hint, .form-error, .field__error {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.profile__name, .tg-head__name, .channel-head__name, .dialog__title { text-wrap: balance; max-width: 100%; }
+.msg__text, .profile__bio { overflow-wrap: anywhere; hyphens: auto; -webkit-hyphens: auto; }
+
+/* Кнопки с длинной подписью: переносим на две строки вместо вылезания */
+.btn { text-align: center; line-height: 1.2; padding-block: .5rem; }
+
+/* Плитки профиля: колонки строго равной ширины, подписи не упираются в края */
+.profile__tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
+.profile__tile { padding: .75rem .25rem; min-width: 0; font-weight: 500; line-height: 1.2; }
+.profile__tile span { max-width: 100%; text-wrap: balance; overflow-wrap: anywhere; hyphens: auto; -webkit-hyphens: auto; }
+@media (max-width: 24rem) { .profile__tile { font-size: .6875rem; } }
+
+/* Список чатов: колонка не шире доступного места, иначе длинное имя уносит время за край экрана */
+.chat-item__body { grid-template-columns: minmax(0, 1fr); }
+.chat-item__row { min-width: 0; }
+.chat-item__name, .chat-item__preview { min-width: 0; max-width: 100%; }
+
+/* Нижняя панель: подпись в одну строку, без вылезания на узких экранах */
+.nav__item { font-size: .6875rem; letter-spacing: 0; padding-inline: .125rem; }
+.nav__item > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- Доступность: уважать «уменьшить движение» ---------- */
 @media (prefers-reduced-motion: reduce) {

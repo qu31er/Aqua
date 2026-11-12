@@ -696,6 +696,8 @@ function setNavActive(btn) {
 }
 document.querySelectorAll('.nav__item').forEach((b) => b.addEventListener('click', () => setNavActive(b)));
 window.addEventListener('resize', () => moveNavPill(document.querySelector('.nav__item.is-active')));
+/* Панель скрыта, пока идёт загрузка (ширина кнопок 0): ставим пилюлю на место, как только она появилась или изменилась */
+if ('ResizeObserver' in window) new ResizeObserver(() => moveNavPill(document.querySelector('.nav__item.is-active'))).observe($('#nav'));
 requestAnimationFrame(() => moveNavPill(document.querySelector('.nav__item.is-active')));
 $('#nav-chats').addEventListener('click', () => { for (const m of ['modal-settings', 'modal-prefs', 'modal-contacts', 'modal-peer', 'modal-channel']) closeModal(m); $('#chat-list').scrollTo({ top: 0, behavior: 'smooth' }); });
 $('#btn-logout').addEventListener('click', () => logout());
