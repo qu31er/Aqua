@@ -1,0 +1,236 @@
+/* ==========================================================================
+   Полировка дизайна: нежно-голубая тема, мягкие переходы.
+   Подключается последним — уточняет токены и компоненты, не меняя логику.
+   Механика окон (data-screen, data-chat-open, .is-open) остаётся прежней.
+   ========================================================================== */
+
+:root {
+  /* Более воздушные оттенки неба */
+  --aqua-mist: #F3F9FF;
+  --aqua-sky-soft: #DCEEFF;
+
+  --color-bg: #EEF6FD;
+  --color-surface-alt: #F7FBFF;
+  --color-border: #DDEBF8;
+  --color-text-muted: #6B8BA4;
+
+  /* Тени мягче и голубее */
+  --shadow-sm: 0 1px 2px rgba(20, 108, 164, .06), 0 2px 8px rgba(20, 108, 164, .05);
+  --shadow-md: 0 6px 20px rgba(20, 108, 164, .10);
+  --shadow-lg: 0 24px 60px rgba(10, 58, 92, .18);
+
+  /* Более плавная, «водная» кривая движения */
+  --ease: cubic-bezier(.22, .9, .3, 1);
+  --dur-fast: .18s;
+  --dur: .32s;
+  --dur-slow: .5s;
+}
+
+/* ---------- Экран входа: тёплая голубая дымка ---------- */
+.auth {
+  background:
+    radial-gradient(70rem 36rem at 90% -12%, rgba(162, 209, 255, .55), transparent 62%),
+    radial-gradient(56rem 32rem at -12% 112%, rgba(18, 144, 191, .18), transparent 62%),
+    linear-gradient(180deg, #D9EEFF 0%, #EEF6FD 100%);
+}
+.auth__card {
+  border: 1px solid rgba(255, 255, 255, .8);
+  box-shadow: 0 30px 70px rgba(10, 58, 92, .16), 0 2px 6px rgba(20, 108, 164, .06);
+  animation: fade-up .6s var(--ease) both;
+}
+.auth__logo {
+  box-shadow: 0 10px 28px rgba(20, 108, 164, .22);
+  animation: logo-float 5s ease-in-out infinite;
+}
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-.25rem); }
+}
+.auth__title { letter-spacing: .01em; }
+
+/* Переключатель входа/регистрации — пилюля с плавным ползунком */
+.tabs {
+  background: var(--aqua-100);
+  border-radius: var(--radius-pill);
+  padding: .3rem;
+}
+.tabs__thumb {
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 8px rgba(20, 108, 164, .12);
+  transition: transform .45s var(--ease);
+}
+
+/* ---------- Поля: мягкий фокус ---------- */
+.input {
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  transition: box-shadow var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.input:hover { box-shadow: inset 0 0 0 1px #C4DDF2; }
+.input:focus {
+  background: #fff;
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--aqua-teal), 0 0 0 .3rem rgba(18, 144, 191, .12);
+}
+.field__label { color: var(--aqua-deep); letter-spacing: .01em; }
+
+/* ---------- Кнопки ---------- */
+.btn {
+  border-radius: var(--radius-md);
+  letter-spacing: .01em;
+  transition: background-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur) var(--ease),
+              transform var(--dur-fast) var(--ease),
+              filter var(--dur-fast) var(--ease);
+}
+.btn--primary {
+  background: linear-gradient(135deg, #2A9CCB, #1B7FB5);
+  box-shadow: 0 6px 16px rgba(27, 127, 181, .25);
+}
+.btn--primary:hover {
+  box-shadow: 0 10px 24px rgba(27, 127, 181, .34);
+  filter: brightness(1.04);
+}
+.btn--primary:active:not(:disabled) { box-shadow: 0 3px 8px rgba(27, 127, 181, .25); }
+.btn--ghost { background: var(--aqua-mist); color: var(--aqua-navy); box-shadow: inset 0 0 0 1px var(--aqua-200); }
+.btn--ghost:hover { background: var(--aqua-100); }
+
+.btn-icon:hover { background: var(--aqua-100); }
+.btn-icon--send {
+  background: linear-gradient(135deg, #2A9CCB, #1B7FB5);
+  box-shadow: 0 6px 16px rgba(27, 127, 181, .28);
+}
+
+/* ---------- Список чатов ---------- */
+.chat-item {
+  border-radius: var(--radius-md);
+  transition: background-color var(--dur) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.chat-item:hover { background: var(--aqua-mist); }
+.chat-item.is-active { background: var(--aqua-100); box-shadow: inset 3px 0 0 var(--aqua-teal); }
+.chat-item__name { color: var(--aqua-deep); }
+.badge {
+  background: linear-gradient(135deg, #2A9CCB, #1B7FB5);
+  box-shadow: 0 2px 6px rgba(27, 127, 181, .3);
+}
+
+/* ---------- Шапка и окно диалога ---------- */
+.chat__header {
+  background: rgba(255, 255, 255, .86);
+  box-shadow: 0 1px 0 var(--color-border), 0 4px 16px rgba(20, 108, 164, .05);
+}
+.chat__messages {
+  background:
+    radial-gradient(44rem 22rem at 100% 0%, rgba(162, 209, 255, .45), transparent 70%),
+    radial-gradient(40rem 26rem at 0% 100%, rgba(18, 144, 191, .10), transparent 70%),
+    var(--color-bg);
+}
+.chat__composer {
+  background: rgba(255, 255, 255, .92);
+  -webkit-backdrop-filter: blur(.75rem);
+  backdrop-filter: blur(.75rem);
+  box-shadow: 0 -1px 0 var(--color-border);
+}
+.composer__input {
+  background: #fff;
+  border-color: var(--color-border);
+  box-shadow: 0 1px 2px rgba(20, 108, 164, .05);
+}
+.composer__input:focus {
+  border-color: var(--aqua-teal);
+  box-shadow: 0 0 0 .25rem rgba(18, 144, 191, .12);
+}
+
+/* ---------- Сообщения ---------- */
+.msg__bubble { box-shadow: 0 1px 2px rgba(20, 108, 164, .08), 0 2px 8px rgba(20, 108, 164, .05); }
+.msg--out .msg__bubble {
+  background: linear-gradient(135deg, #2A9CCB, #1B7FB5);
+  box-shadow: 0 4px 14px rgba(27, 127, 181, .22);
+}
+.msg--in .msg__bubble { background: #fff; }
+.day-sep {
+  background: rgba(255, 255, 255, .75);
+  color: var(--color-text-muted);
+  box-shadow: 0 1px 4px rgba(20, 108, 164, .06);
+}
+.reaction.is-mine { background: var(--aqua-200); border-color: var(--aqua-teal); }
+
+/* ---------- Модальные окна и меню: плавное появление ---------- */
+.modal__backdrop {
+  background: rgba(20, 60, 90, .32);
+  -webkit-backdrop-filter: blur(.5rem);
+  backdrop-filter: blur(.5rem);
+  transition: opacity var(--dur) var(--ease);
+}
+.modal__dialog {
+  border-radius: var(--radius-lg);
+  transition: opacity var(--dur) var(--ease), transform var(--dur-slow) var(--ease);
+}
+.modal__title { color: var(--aqua-navy); letter-spacing: .01em; }
+
+.menu {
+  border-radius: 1.25rem;
+  box-shadow: 0 16px 44px rgba(10, 58, 92, .20), 0 2px 6px rgba(20, 108, 164, .08);
+  border: 1px solid rgba(221, 235, 248, .8);
+}
+.menu__action { border-radius: var(--radius-sm); transition: background-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
+.menu__action:active { transform: scale(.98); }
+.menu__action:hover { background: var(--aqua-mist); }
+
+/* ---------- Тост ---------- */
+.toast {
+  background: linear-gradient(135deg, #1D5C86, #0F4A73);
+  border-radius: var(--radius-pill);
+  padding: .65rem 1.35rem;
+  box-shadow: 0 12px 32px rgba(10, 58, 92, .28);
+  transition: opacity var(--dur) var(--ease), transform var(--dur-slow) var(--ease-back);
+}
+
+/* ---------- Нижнее меню: стеклянная пилюля ---------- */
+.nav {
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(221, 235, 248, .9);
+  box-shadow: 0 10px 30px rgba(20, 108, 164, .14);
+}
+.nav__item { transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur-fast) var(--ease); }
+.nav__item.is-active { background: var(--aqua-100); color: var(--aqua-navy); }
+
+/* ---------- Переключатели и ползунки ---------- */
+.range input[type=range]::-webkit-slider-thumb { background: #1B7FB5; }
+.range input[type=range]::-moz-range-thumb { background: #1B7FB5; }
+.theme-sw[aria-checked="true"] { box-shadow: 0 0 0 .2rem #1B7FB5; }
+
+/* ---------- Профиль: карточки-плитки ---------- */
+.profile__tile {
+  border-radius: var(--radius-lg);
+  background: var(--aqua-mist);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  transition: transform var(--dur-fast) var(--ease), background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.profile__tile:hover { background: var(--aqua-100); box-shadow: inset 0 0 0 1px var(--aqua-200), 0 4px 12px rgba(20, 108, 164, .08); }
+.profile__info { border-radius: var(--radius-lg); background: #fff; box-shadow: var(--shadow-sm); border-color: transparent; }
+
+/* ---------- Состояния: появление элементов списка ---------- */
+.chat-item.is-new,
+.contacts__row,
+.picker__emoji,
+.picker__sticker {
+  animation: fade-up var(--dur) var(--ease) both;
+}
+
+/* ---------- Прокрутка ---------- */
+.scroll { scrollbar-color: #B9DCF5 transparent; }
+.scroll::-webkit-scrollbar-thumb { background: #B9DCF5; }
+
+/* ---------- Доступность: уважать «уменьшить движение» ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .auth__logo { animation: none; }
+  .auth__card,
+  .chat-item.is-new,
+  .contacts__row,
+  .picker__emoji,
+  .picker__sticker { animation: none; }
+}
