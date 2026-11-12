@@ -198,64 +198,50 @@
       <header class="auth__brand">
         <img class="auth__logo" src="assets/icon-192.png" width="80" height="80" alt="">
         <h1 class="auth__title">Aqua</h1>
-        <p class="auth__subtitle">Только имя пользователя и пароль</p>
+        <p class="auth__subtitle">Вход и регистрация по коду из письма</p>
       </header>
 
-      <div class="tabs" id="auth-tabs" role="tablist" data-active="login">
-        <span class="tabs__thumb" aria-hidden="true"></span>
-        <button class="tabs__tab" role="tab" id="tab-login" aria-selected="true" aria-controls="form-login" type="button">Вход</button>
-        <button class="tabs__tab" role="tab" id="tab-register" aria-selected="false" aria-controls="form-register" type="button">Регистрация</button>
-      </div>
-
-      <!-- Вход -->
-      <form id="form-login" role="tabpanel" aria-labelledby="tab-login" novalidate>
-        <div class="form-error" id="login-error" role="alert" hidden></div>
+      <!-- Шаг 1: почта -->
+      <form id="form-email" novalidate>
+        <div class="form-error" id="email-error" role="alert" hidden></div>
         <div class="field">
-          <label class="field__label" for="login-username">Имя пользователя</label>
-          <input class="input" id="login-username" name="username" type="text" autocomplete="username"
+          <label class="field__label" for="auth-email">Электронная почта</label>
+          <input class="input" id="auth-email" name="email" type="email" autocomplete="email" inputmode="email"
                  autocapitalize="none" autocorrect="off" spellcheck="false" required>
         </div>
-        <div class="field">
-          <label class="field__label" for="login-password">Пароль</label>
-          <div class="field__control">
-            <input class="input" id="login-password" name="password" type="password" autocomplete="current-password" required>
-            <button class="btn-icon" type="button" data-toggle-password="login-password" aria-label="Показать пароль">
-              <svg class="icon"><use href="#i-eye"/></svg>
-            </button>
-          </div>
-        </div>
-        <button class="btn btn--primary btn--block" type="submit">Войти</button>
+        <button class="btn btn--primary btn--block" type="submit">Получить код</button>
       </form>
 
-      <!-- Регистрация -->
-      <form id="form-register" role="tabpanel" aria-labelledby="tab-register" novalidate hidden>
-        <div class="form-error" id="register-error" role="alert" hidden></div>
+      <!-- Шаг 2: код из письма -->
+      <form id="form-code" novalidate hidden>
+        <div class="form-error" id="code-error" role="alert" hidden></div>
+        <p class="auth__hint" id="code-sent"></p>
         <div class="field">
-          <label class="field__label" for="reg-username">Имя пользователя</label>
-          <input class="input" id="reg-username" name="username" type="text" autocomplete="username"
-                 autocapitalize="none" autocorrect="off" spellcheck="false" required aria-describedby="reg-username-error">
-          <p class="field__error" id="reg-username-error"></p>
+          <label class="field__label" for="auth-code">Код из письма</label>
+          <input class="input input--code" id="auth-code" name="code" type="text" inputmode="numeric"
+                 autocomplete="one-time-code" maxlength="6" required>
         </div>
+        <button class="btn btn--primary btn--block" type="submit">Войти</button>
+        <div class="auth__row">
+          <button class="btn btn--ghost" type="button" id="code-back">Другая почта</button>
+          <button class="btn btn--ghost" type="button" id="code-resend" disabled>Отправить снова</button>
+        </div>
+      </form>
+
+      <!-- Шаг 3: почта новая — выбираем имя пользователя -->
+      <form id="form-name" novalidate hidden>
+        <div class="form-error" id="name-error" role="alert" hidden></div>
+        <p class="auth__hint">Почта подтверждена. Выберите имя пользователя.</p>
         <div class="field">
-          <label class="field__label" for="reg-password">Пароль</label>
-          <div class="field__control">
-            <input class="input" id="reg-password" name="password" type="password" autocomplete="new-password"
-                   required aria-describedby="password-rules">
-            <button class="btn-icon" type="button" data-toggle-password="reg-password" aria-label="Показать пароль">
-              <svg class="icon"><use href="#i-eye"/></svg>
-            </button>
-          </div>
+          <label class="field__label" for="auth-username">Имя пользователя</label>
+          <input class="input" id="auth-username" name="username" type="text" autocomplete="username"
+                 autocapitalize="none" autocorrect="off" spellcheck="false" required aria-describedby="auth-username-error">
+          <p class="field__error" id="auth-username-error"></p>
         </div>
-        <!-- Индикатор правил: JS (Этап 4) ставит .is-ok / .is-bad -->
-        <ul class="rules" id="password-rules" aria-live="polite">
-          <li class="rules__item" data-rule="length">Не менее 8 символов</li>
-          <li class="rules__item" data-rule="lower">Строчная латинская буква (a–z)</li>
-          <li class="rules__item" data-rule="digit">Цифра (0–9)</li>
-        </ul>
         <button class="btn btn--primary btn--block" type="submit">Создать аккаунт</button>
       </form>
-    <button class="auth__cancel" type="button" id="auth-cancel" hidden>← Вернуться в прежний аккаунт</button>
     </div>
+    <button class="auth__cancel" type="button" id="auth-cancel" hidden>← Вернуться в прежний аккаунт</button>
   </main>
 
   <!-- ============================== Мессенджер ============================== -->

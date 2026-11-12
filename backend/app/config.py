@@ -123,3 +123,18 @@ CONTENT_SECURITY_POLICY = (
     "connect-src 'self' ws: wss:; "
     "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
 )
+
+
+# --- Вход/регистрация по коду из письма ----------------------------------------
+# SMTP задаётся переменными окружения. Без SMTP письма не уходят: в проде коды не
+# пишутся в лог; локально можно включить AQUA_EMAIL_DEV=1 — тогда код печатается в консоль.
+SMTP_HOST = os.getenv("AQUA_SMTP_HOST", "").strip()
+SMTP_PORT = int(os.getenv("AQUA_SMTP_PORT", "587"))
+SMTP_USER = os.getenv("AQUA_SMTP_USER", "").strip()
+SMTP_PASSWORD = os.getenv("AQUA_SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("AQUA_SMTP_FROM", "").strip() or SMTP_USER
+EMAIL_DEV = os.getenv("AQUA_EMAIL_DEV", "") == "1"
+EMAIL_CODE_TTL_SEC = 600          # код живёт 10 минут
+EMAIL_CODE_COOLDOWN_SEC = 60      # повторно можно запросить через минуту
+EMAIL_CODE_MAX_TRIES = 5          # после 5 неверных вводов код сгорает
+EMAIL_TICKET_TTL_SEC = 900        # время на выбор имени после подтверждения почты

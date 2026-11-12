@@ -216,6 +216,20 @@ def init_db(path: Path = DB_PATH) -> None:
         if "description" not in ccols:
             conn.execute("ALTER TABLE chats ADD COLUMN description TEXT NOT NULL DEFAULT ''")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_username ON chats(username)")
+        # Вход/регистрация по почте: адрес (уникальный, без учёта регистра) и одноразовые коды
+        ucols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+        if "email" not in ucols:
+            conn.execute("ALTER TABLE users ADD COLUMN email TEXT COLLATE NOCASE")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+        conn.execute("""CREATE TABLE IF NOT EXISTS email_codes (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            email       TEXT    NOT NULL COLLATE NOCASE,
+            code_hash   TEXT    NOT NULL,
+            created_at  REAL    NOT NULL,
+            expires_at  REAL    NOT NULL,
+            tries       INTEGER NOT NULL DEFAULT 0,
+            used        INTEGER NOT NULL DEFAULT 0)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_email_codes_email ON email_codes(email)")
         # Блок 4: пересланные, закреплённое сообщение, прочитанность
         if "fwd" not in cols:
             conn.execute("ALTER TABLE messages ADD COLUMN fwd TEXT")
