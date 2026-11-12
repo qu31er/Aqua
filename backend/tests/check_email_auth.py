@@ -1,4 +1,4 @@
-# Вход по почте без FastAPI: код одноразовый, после ошибок сгорает, билет для нового адреса, старый вход отключён.
+# Регистрация с кодом из письма без FastAPI: код одноразовый, после ошибок сгорает, занятые логин/почта, вход по паролю остался.
 import sys, types, os, tempfile, pathlib, time
 os.environ["AQUA_DATA_DIR"] = tempfile.mkdtemp()
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -32,29 +32,27 @@ email_auth.mail_ready = lambda: True
 def expect(status, fn):
     try: fn(); raise SystemExit(f"expected {status}")
     except HTTPException as e: assert e.status == status, (e.status, e.detail)
-email_auth.request_code(email_auth.EmailRequest(email="Ann@Example.com"), c)
+S = email_auth.RegisterStart; F = email_auth.RegisterFinish
+d = dict(username="ann_1", password="secret123", email="Ann@Example.com")
+expect(422, lambda: email_auth.send_code(S(username="a!", password="secret123", email="ann@example.com"), c))   # плохой логин
+expect(422, lambda: email_auth.send_code(S(username="ann_1", password="short", email="ann@example.com"), c))     # плохой пароль
+expect(422, lambda: email_auth.send_code(S(username="ann_1", password="secret123", email="nope"), c))           # плохая почта
+email_auth.send_code(S(**d), c)
 code = sent["ann@example.com"]
-expect(429, lambda: email_auth.request_code(email_auth.EmailRequest(email="ann@example.com"), c))   # cooldown
-expect(400, lambda: email_auth.verify_code(email_auth.EmailVerify(email="ann@example.com", code="000000" if code != "000000" else "111111"), c))
-r = email_auth.verify_code(email_auth.EmailVerify(email="ann@example.com", code=code), c)
-assert r["status"] == "need_username" and r["ticket"]
-expect(400, lambda: email_auth.verify_code(email_auth.EmailVerify(email="ann@example.com", code=code), c))  # код одноразовый
-u = email_auth.register_with_email(email_auth.EmailRegister(ticket=r["ticket"], username="ann_1"), c)
-assert u["status"] == "ok" and u["user"]["username"] == "ann_1"
-# повторная регистрация с тем же билетом не сработает: почта уже привязана
-expect(409, lambda: email_auth.register_with_email(email_auth.EmailRegister(ticket=r["ticket"], username="ann_2"), c))
-# следующий вход — по коду, сразу в аккаунт
-c.execute("UPDATE email_codes SET created_at = created_at - 120"); c.commit()
-email_auth.request_code(email_auth.EmailRequest(email="ann@example.com"), c)
-r2 = email_auth.verify_code(email_auth.EmailVerify(email="ann@example.com", code=sent["ann@example.com"]), c)
-assert r2["status"] == "ok" and r2["user"]["username"] == "ann_1"
+expect(429, lambda: email_auth.send_code(S(**d), c))                                                             # cooldown
+wrong = "000000" if code != "000000" else "111111"
+expect(400, lambda: email_auth.register(F(**d, code=wrong), c))
+r = email_auth.register(F(**d, code=code), c)
+assert r["user"]["username"] == "ann_1" and r["token"]
+row = c.execute("SELECT email FROM users WHERE username='ann_1'").fetchone(); assert row["email"] == "ann@example.com"
+expect(409, lambda: email_auth.register(F(**d, code=code), c))                                                   # логин уже занят
+expect(409, lambda: email_auth.send_code(S(username="ann_2", password="secret123", email="ann@example.com"), c)) # почта занята
 # брутфорс: 5 неверных — код сгорает
-c.execute("UPDATE email_codes SET created_at = created_at - 120"); c.commit()
-email_auth.request_code(email_auth.EmailRequest(email="bob@example.com"), c)
-wrong = "000000" if sent["bob@example.com"] != "000000" else "111111"
+bd = dict(username="bob_1", password="secret123", email="bob@example.com")
+email_auth.send_code(S(**bd), c)
+bw = "000000" if sent["bob@example.com"] != "000000" else "111111"
 for _ in range(5):
-    expect(400, lambda: email_auth.verify_code(email_auth.EmailVerify(email="bob@example.com", code=wrong), c))
-expect(429, lambda: email_auth.verify_code(email_auth.EmailVerify(email="bob@example.com", code=sent["bob@example.com"]), c))
-# старый вход по паролю отключён
-assert not hasattr(auth, "login") and not hasattr(auth, "register")
+    expect(400, lambda: email_auth.register(F(**bd, code=bw), c))
+expect(429, lambda: email_auth.register(F(**bd, code=sent["bob@example.com"]), c))
+assert hasattr(auth, "login")
 print("email auth OK")

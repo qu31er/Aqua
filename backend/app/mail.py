@@ -23,11 +23,11 @@ def send_login_code(to: str, code: str) -> None:
             return
         raise MailNotConfigured("Отправка писем не настроена.")
     msg = EmailMessage()
-    msg["Subject"] = f"Код входа в Aqua: {code}"
+    msg["Subject"] = f"Код подтверждения Aqua: {code}"
     msg["From"] = config.SMTP_FROM
     msg["To"] = to
     msg.set_content(
-        f"Ваш код для входа в Aqua: {code}\n\n"
+        f"Ваш код для регистрации в Aqua: {code}\n\n"
         f"Код действует 10 минут. Если вы не запрашивали код, просто проигнорируйте письмо.")
     with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=15) as smtp:
         smtp.starttls()

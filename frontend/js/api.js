@@ -54,9 +54,9 @@ async function request(path, { method = 'GET', json, form, auth = true } = {}) {
 }
 
 export const api = {
-  requestEmailCode: (email) => request('/auth/email/request', { method: 'POST', json: { email }, auth: false }),
-  verifyEmailCode:  (email, code) => request('/auth/email/verify', { method: 'POST', json: { email, code }, auth: false }),
-  registerByEmail:  (ticket, username) => request('/auth/email/register', { method: 'POST', json: { ticket, username }, auth: false }),
+  login:        (username, password) => request('/auth/login', { method: 'POST', json: { username, password }, auth: false }),
+  registerCode: (d) => request('/auth/register/code', { method: 'POST', json: d, auth: false }),
+  register:     (d) => request('/auth/register', { method: 'POST', json: d, auth: false }),
   me:       () => request('/auth/me'),
   searchUsers: (q) => request(`/users/search?q=${encodeURIComponent(q)}`),
   listChats: () => request('/chats'),

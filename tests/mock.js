@@ -91,14 +91,17 @@ async function setup(browser, ctxOpts = {}, opts = {}) {
     const req = route.request(); const u = new URL(req.url()); const path = u.pathname.replace('/api', '');
     be.reqs.push(req.method() + ' ' + path);
     let m1; const json = (status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
-    if (path === '/auth/email/request') return json(200, { ok: true, ttl: 600, cooldown: 60 });
-    if (path === '/auth/email/verify') {
+    if (path === '/auth/login') {
       const d = req.postDataJSON();
-      if (d.code !== '123456') return json(400, { detail: 'Неверный код. Осталось попыток: 4.' });
-      return d.email === 'alice@example.com' ? json(200, { status: 'ok', token: 'tok', token_type: 'bearer', user: be.me })
-        : json(200, { status: 'need_username', ticket: 'tk' });
+      return d.password === 'secret123' ? json(200, { token: 'tok', token_type: 'bearer', user: be.me })
+        : json(401, { detail: 'Неверное имя пользователя или пароль.' });
     }
-    if (path === '/auth/email/register') return json(201, { status: 'ok', token: 'tok', token_type: 'bearer', user: be.me });
+    if (path === '/auth/register/code') return json(200, { ok: true, ttl: 600, cooldown: 60 });
+    if (path === '/auth/register') {
+      const d = req.postDataJSON();
+      return d.code === '123456' ? json(201, { token: 'tok', token_type: 'bearer', user: be.me })
+        : json(400, { detail: 'Неверный код. Осталось попыток: 4.' });
+    }
     if (path === '/profile' && req.method() === 'PATCH') {
       const d = req.postDataJSON(); be.profilePatches = (be.profilePatches || []); be.profilePatches.push(d);
       if ('display_name' in d) be.me.display_name = d.display_name || be.me.username;

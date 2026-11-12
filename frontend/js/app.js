@@ -104,14 +104,9 @@ const peerProfile = initPeerProfile({ onChange: () => {}, onAvatars: (u) => peer
 initPullDown($('#modal-peer .modal__body'), () => peerProfile.openAvatars(), { target: $('#peer-big-avatar') });
 
 const authView = initAuthView({
-  onRequest: (email) => api.requestEmailCode(email),
-  // Код верный: почта уже привязана — входим; новая почта — возвращаем билет для выбора имени
-  onVerify: async (email, code) => {
-    const r = await api.verifyEmailCode(email, code);
-    if (r.status === 'ok') { await authenticate(Promise.resolve(r)); return null; }
-    return r.ticket;
-  },
-  onRegister: (ticket, username) => authenticate(api.registerByEmail(ticket, username)),
+  onLogin: (username, password) => authenticate(api.login(username, password)),
+  onSendCode: (d) => api.registerCode(d),
+  onRegister: (d) => authenticate(api.register(d)),
 });
 
 async function enterApp(user) {
