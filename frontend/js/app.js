@@ -697,6 +697,8 @@ function setNavActive(btn) {
 document.querySelectorAll('.nav__item').forEach((b) => b.addEventListener('click', () => setNavActive(b)));
 window.addEventListener('resize', () => moveNavPill(document.querySelector('.nav__item.is-active')));
 requestAnimationFrame(() => moveNavPill(document.querySelector('.nav__item.is-active')));
+/* Панель скрыта на экране входа и в чатах: когда она появляется (меняется размер), подсветка встаёт на место */
+if (window.ResizeObserver) new ResizeObserver(() => moveNavPill(document.querySelector('.nav__item.is-active'))).observe($('.nav'));
 $('#nav-chats').addEventListener('click', () => { for (const m of ['modal-settings', 'modal-prefs', 'modal-contacts', 'modal-peer', 'modal-channel']) closeModal(m); $('#chat-list').scrollTo({ top: 0, behavior: 'smooth' }); });
 $('#btn-logout').addEventListener('click', () => logout());
 

@@ -1029,3 +1029,26 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 #form-email, #form-code, #form-name { display: flex; flex-direction: column; gap: .9rem; }
 #form-email[hidden], #form-code[hidden], #form-name[hidden] { display: none; }
 #form-code .field, #form-name .field, #form-email .field { margin: 0; }
+
+/* ==========================================================================
+   Этап 1 «как в Telegram»: список чатов — плоские строки, крупные аватарки,
+   заголовок без логотипа, поиск-таблетка; нижняя панель — компактная «таблетка».
+   ========================================================================== */
+.sidebar__brand img { display: none; }
+.sidebar__brand span:first-of-type { font-size: 1.4rem; font-weight: 700; letter-spacing: 0; }
+.sidebar__header { padding: .75rem 1rem .5rem; }
+.sidebar__search { padding: 0 1rem .6rem; }
+.search .input { min-height: 2.75rem; border: 0; background: var(--aqua-100); box-shadow: none; }
+.search .input:focus { background: var(--aqua-50); box-shadow: 0 0 0 2px var(--aqua-300, #7cc4ea) inset; }
+.sidebar__list { padding-inline: 0 !important; }
+.chat-item { gap: .9rem; padding: .6rem 1rem; border-radius: 0; min-height: 4.4rem; background: transparent; }
+.chat-item:hover { background: transparent; }
+.chat-item:active { transform: none; background: var(--aqua-100); }
+.chat-item .avatar { width: 3.5rem; height: 3.5rem; font-size: 1.15rem; flex: none; }
+.chat-item__name { font-size: 1.02rem; }
+.chat-item__preview { font-size: .95rem; }
+.chat-item .badge { min-width: 1.5rem; line-height: 1.5rem; padding: 0 .45rem; font-size: .8rem; }
+/* Нижняя панель: ниже и плотнее, выбранная вкладка — таблетка */
+.nav { padding: .3rem; }
+.nav__item { padding: .35rem .2rem; font-size: .72rem; }
+.nav__item .icon { width: 1.4rem; height: 1.4rem; }
