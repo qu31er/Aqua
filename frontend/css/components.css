@@ -1052,3 +1052,26 @@ button.msg__author { padding: 0; border: 0; background: none; font: inherit; fon
 .nav { padding: .3rem; }
 .nav__item { padding: .35rem .2rem; font-size: .72rem; }
 .nav__item .icon { width: 1.4rem; height: 1.4rem; }
+
+/* ==========================================================================
+   Этап 2 «как в Telegram»: профиль — без заголовка, большой аватар по центру,
+   три кнопки-плитки, плоский блок «Информация», выход отдельной строкой.
+   ========================================================================== */
+.profile__tiles { grid-template-columns: repeat(3, 1fr) !important; }
+#modal-settings .modal__header { display: none; }
+#modal-settings .profile { padding-top: 1.5rem; }
+#modal-settings .profile .avatar--xl { width: 8.5rem; height: 8.5rem; font-size: 2.8rem; }
+#modal-settings .profile__name { font-size: 1.5rem; }
+#modal-settings .profile__status { color: var(--aqua-teal-600); }
+.profile__tile { background: var(--aqua-100); border: 0; border-radius: 1rem; font-size: .78rem; font-weight: 600; color: var(--color-primary); }
+.profile__info { margin-top: .4rem; padding-top: 1.7rem; position: relative; background: transparent !important; border: 0 !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.profile__info::before { content: "Информация"; position: absolute; top: .3rem; left: 1rem; font-size: .85rem; font-weight: 700; color: var(--color-primary); }
+.profile__row { padding: .65rem 1rem; }
+.profile__row + .profile__row { border-top: 0; }
+.profile__label { order: 2; margin: .1rem 0 0; }
+.profile__row { display: flex; flex-direction: column; }
+.profile__row .profile__bio, .profile__row .profile__login { order: 1; font-size: 1rem; }
+.profile__logout { display: flex; align-items: center; gap: .9rem; width: 100%; margin-top: .6rem; padding: .85rem 1rem; border: 0; background: transparent;
+  color: var(--color-danger); font: inherit; font-weight: 600; text-align: left; cursor: pointer; border-radius: 1rem; }
+.profile__logout:active { background: var(--aqua-100); }
+.profile__logout .icon { width: 1.4rem; height: 1.4rem; }
